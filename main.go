@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -10,6 +11,7 @@ const (
 	RATE_LESS_THAN_50       int64 = 10
 	RATE_BETWEEN_50_AND_300 int64 = 5
 	RATE_ABOVE_300          int64 = 25
+	MAX_ORDER               int64 = 1000000
 )
 
 func main() {
@@ -20,27 +22,35 @@ func main() {
 	}
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 	logger.Info("starting disbursement service on", "hostname", hostname)
-	totalPurchaseFees, err := calculateTotalPurchaseFee(30100)
+	orderFee, err := calculateOrderFee(30100)
 	if err != nil {
 		logger.Error(err.Error())
 		return
 	}
-	fmt.Printf("The total fee for the single purchase is: €%.2f", float32(totalPurchaseFees)/100)
+	fmt.Printf("The total fee for the single purchase is: €%.2f", float32(orderFee)/100)
 
 }
 
-func calculateTotalPurchaseFee(totalPurchase int64) (totalPurchaseFee int64, err error) {
-	if totalPurchase > 0 && totalPurchase < 5000 {
-		totalPurchaseFee = RATE_LESS_THAN_50 * totalPurchase / 100
+func calculateOrderFee(order int64) (orderFee int64, err error) {
+	if order > 0 && order < 5000 {
+		orderFee = RATE_LESS_THAN_50 * order / 100
+		return orderFee, nil
 	}
 
-	if totalPurchase > 5000 && totalPurchase < 30000 {
-		totalPurchaseFee = RATE_BETWEEN_50_AND_300 * totalPurchase / 100
+	if order > 5000 && order < 30000 {
+		orderFee = RATE_BETWEEN_50_AND_300 * order / 100
+		return orderFee, nil
 	}
 
-	if totalPurchase > 30000 {
-		totalPurchaseFee = RATE_ABOVE_300 * totalPurchase / 1000
+	if order > 30000 {
+		orderFee = RATE_ABOVE_300 * order / 1000
+		return orderFee, nil
 	}
 
-	return totalPurchaseFee, nil
+	if order > MAX_ORDER {
+		slog.Error("order submitted above max order value permitted")
+		return -1, errors.New("order submitted above max order value permitted")
+	}
+
+	return orderFee, nil
 }
