@@ -3,6 +3,7 @@ package disburse
 import (
 	"bufio"
 	"encoding/csv"
+	"github.com/levtk/sequra/models"
 	"io"
 	"math"
 	"os"
@@ -14,12 +15,12 @@ import (
 
 // importDataFromOrders imports the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
-func importDataFromOrders(fileName string) ([]Order, error) {
-	var o = make([]Order, 1310000)
+func importDataFromOrders(fileName string) ([]models.Order, error) {
+	var o = make([]models.Order, 1310000)
 	var counter = 0
 	ofd, err := os.Open(fileName)
 	if err != nil {
-		return []Order{}, err
+		return []models.Order{}, err
 	}
 	defer ofd.Close()
 
@@ -64,12 +65,12 @@ func importDataFromOrders(fileName string) ([]Order, error) {
 
 // importDataFromMerchants imports the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
-func importDataFromMerchants(fileName string) (map[string]Merchant, error) {
-	var m = map[string]Merchant{}
+func importDataFromMerchants(fileName string) (map[string]models.Merchant, error) {
+	var m = map[string]models.Merchant{}
 	mfd, err := os.Open(fileName)
 
 	if err != nil {
-		return map[string]Merchant{}, err
+		return map[string]models.Merchant{}, err
 	}
 
 	defer mfd.Close()
@@ -103,7 +104,7 @@ func importDataFromMerchants(fileName string) (map[string]Merchant, error) {
 		}
 
 		if err == nil {
-			merchant := Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
+			merchant := models.Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
 			m[rec[1]] = merchant
 		}
 	}

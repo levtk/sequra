@@ -1,8 +1,9 @@
-package disburse
+package models
 
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -14,10 +15,13 @@ const (
 	RATE_ABOVE_300          int64  = 25
 	MAX_ORDER               int64  = 1000000
 	TIME_CUT_OFF            string = "08:00"
+	PRINT_TO_FILE                  = "PRINT_TO_FILE"
 )
 
-type Disburser interface {
-	ProcessOrder() error
+type PrintMethod string
+
+func (p PrintMethod) NewDefault() PrintMethod {
+	return PRINT_TO_FILE
 }
 
 type Order struct {
@@ -34,6 +38,14 @@ type Merchant struct {
 	LiveOn                time.Time `json:"live_on,omitempty"`
 	DisbursementFrequency string    `json:"disbursement_frequency,omitempty"`
 	MinMonthlyFee         string    `json:"minimum_monthly_fee,omitempty"`
+}
+
+type Disbursement struct {
+	ID                   uuid.UUID
+	OrderID              string
+	MerchantReference    string
+	OrderFee             int64
+	RunningTotalOrderFee int64
 }
 
 type DisbursementReport struct {
@@ -68,7 +80,7 @@ func calculateOrderFee(order int64) (orderFee int64, err error) {
 	}
 
 	if order > MAX_ORDER {
-		return -1, errors.New("order submitted above max order value permitted")
+		return 0, errors.New("order submitted above max order value permitted")
 	}
 
 	return orderFee, nil
@@ -99,9 +111,14 @@ func (m Merchant) calculateWeeklyTotalOrders() (int64, error) {
 	return -1, nil
 }
 
-func getOrdersByMerchRef(merchRef string) ([]Order, error) {
-	//TODO implement
-	return []Order{}, nil
+func getOrdersByMerchRef(merchRef string, orders []Order) ([]Order, error) {
+	var o []Order
+	for _, v := range orders {
+		if strings.ToLower(v.MerchantReference) == strings.ToLower(merchRef) {
+			o = append(o, v)
+		}
+	}
+	return o, nil
 }
 
 func isBeforeCutOffTime() (bool, error) {

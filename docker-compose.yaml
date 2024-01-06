@@ -1,0 +1,19 @@
+version: "3.8"
+services:
+  lev-web:
+    build:
+      dockerfile: ./Dockerfile
+    ports:
+      - "80:80"
+      - "443:443"
+
+  db:
+    image: mariadb:10.6
+    env_file: /Users/levtk/go/src/levtk/sequra/.env
+    volumes:
+      - ~/docker/volumes/mariadb/data:/var/lib/mysql
+      - ~/docker/volumes/mariadb/config:/etc/mysql/conf.d
+      - ~/docker/volumes/mariadb/config/docker-entrypoint-initdb.d/
+    ports:
+      - "3306:3306"
+
