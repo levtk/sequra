@@ -18,16 +18,18 @@ func Test_importDataFromOrders(t *testing.T) {
 	o[2] = o3
 
 	tests := []struct {
-		name    string
-		want    []Order
-		wantErr bool
+		name     string
+		fileName string
+		want     []Order
+		wantErr  bool
 	}{
 
-		{name: "success", want: o, wantErr: false},
+		{name: "success", fileName: "../orders_test.csv", want: o, wantErr: false},
+		{name: "fileNotFound", fileName: "../order.csv", want: []Order{}, wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := importDataFromOrders("../orders_test.csv")
+			got, err := importDataFromOrders(tt.fileName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("importDataFromOrders() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -87,15 +89,17 @@ func Test_importDataFromMerchants(t *testing.T) {
 		},
 	}
 	tests := []struct {
-		name    string
-		want    map[string]Merchant
-		wantErr bool
+		name     string
+		fileName string
+		want     map[string]Merchant
+		wantErr  bool
 	}{
-		{name: "success", want: merchants, wantErr: false},
+		{name: "success", fileName: "../merchants_test.csv", want: merchants, wantErr: false},
+		{name: "fileNotFound", fileName: "../merch.csv", wantErr: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := importDataFromMerchants("../merchants_test.csv")
+			got, err := importDataFromMerchants(tt.fileName)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("importDataFromMerchants() error = %v, wantErr %v", err, tt.wantErr)
 				return

@@ -12,6 +12,8 @@ import (
 	"github.com/google/uuid"
 )
 
+// importDataFromOrders imports the order data that was exported to a semicolon separated file formatted
+// per the legacy design specification prior to the new requirements documented in [link to jira story]
 func importDataFromOrders(fileName string) ([]Order, error) {
 	var o = make([]Order, 1310000)
 	var counter = 0
@@ -60,6 +62,8 @@ func importDataFromOrders(fileName string) ([]Order, error) {
 	}
 }
 
+// importDataFromMerchants imports the order data that was exported to a semicolon separated file formatted
+// per the legacy design specification prior to the new requirements documented in [link to jira story]
 func importDataFromMerchants(fileName string) (map[string]Merchant, error) {
 	var m = map[string]Merchant{}
 	mfd, err := os.Open(fileName)
@@ -79,7 +83,7 @@ func importDataFromMerchants(fileName string) (map[string]Merchant, error) {
 			return m, nil
 		}
 
-		if err != nil && err != io.EOF {
+		if err != nil {
 			return m, err
 		}
 
@@ -89,12 +93,12 @@ func importDataFromMerchants(fileName string) (map[string]Merchant, error) {
 		}
 
 		uuid, err := uuid.Parse(rec[0])
-		if err != nil && err != io.EOF {
+		if err != nil {
 			return m, err
 		}
 
 		liveon, err := time.Parse(time.DateOnly, rec[3])
-		if err != nil && err != io.EOF {
+		if err != nil {
 			return m, err
 		}
 
