@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+#Goland config
+.idea/
+
 # Test binary, built with `go test -c`
 *.test
 

@@ -29,7 +29,7 @@ func importDataFromOrders(fileName string) ([]Order, error) {
 		rec, err := r.Read()
 		if err == nil {
 			line, _ := r.FieldPos(0)
-			if line == 1 {
+			if line == 1 { //skipping header line
 				continue
 			}
 			o[counter].ID = rec[0]
@@ -60,9 +60,9 @@ func importDataFromOrders(fileName string) ([]Order, error) {
 	}
 }
 
-func importDataFromMerchants() (map[string]Merchant, error) {
+func importDataFromMerchants(fileName string) (map[string]Merchant, error) {
 	var m = map[string]Merchant{}
-	mfd, err := os.Open("merchants.csv")
+	mfd, err := os.Open(fileName)
 
 	if err != nil {
 		return map[string]Merchant{}, err
@@ -75,21 +75,32 @@ func importDataFromMerchants() (map[string]Merchant, error) {
 
 	for {
 		rec, err := r.Read()
-		if err != nil {
+		if err == io.EOF {
+			return m, nil
+		}
+
+		if err != nil && err != io.EOF {
 			return m, err
 		}
 
+		line, _ := r.FieldPos(0)
+		if line == 1 { //skipping header line
+			continue
+		}
+
 		uuid, err := uuid.Parse(rec[0])
-		if err != nil {
+		if err != nil && err != io.EOF {
 			return m, err
 		}
 
 		liveon, err := time.Parse(time.DateOnly, rec[3])
+		if err != nil && err != io.EOF {
+			return m, err
+		}
+
 		if err == nil {
 			merchant := Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
 			m[rec[1]] = merchant
-		} else {
-			return m, err
 		}
 	}
 }
