@@ -1,8 +1,12 @@
 package disburse
 
 import (
+	"context"
+	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/levtk/sequra/repo"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -12,12 +16,83 @@ const (
 	RATE_LESS_THAN_50       int64  = 10
 	RATE_BETWEEN_50_AND_300 int64  = 5
 	RATE_ABOVE_300          int64  = 25
-	MAX_ORDER               int64  = 1000000
+	MAX_ORDER               int64  = 1000000 //Should be configured per Merchant during onboarding
 	TIME_CUT_OFF            string = "08:00"
+	OREDERS_FILENAME               = "orders.csv"
+	MERCHANTS_FILENAME             = "merchants.csv"
 )
 
 type Disburser interface {
-	ProcessOrder() error
+	ProcessOrder(op OrderProcessor) error
+	ImportOrders(o Importer) error
+	GenerateReports(r Reporter) ([]Report, error)
+}
+
+type DisburserService struct {
+	ProcessOrder OrderProcessor
+	Importer     Importer
+	Reporter     Reporter
+	logger       slog.Logger
+}
+
+func NewDisburserService(logger slog.Logger, ctx context.Context, db *sql.DB) (*DisburserService, error) {
+	repo, err := repo.NewDisburserRepo(logger, ctx, db)
+}
+
+type Importer interface {
+	ImportOrders() error
+}
+type OrderProcessor interface {
+	CalculateOrderFee(o Order) (int64, error)
+	GetMinMonthlyFeeRemaining(o Order, s Seller) (int64, error)
+}
+
+type Seller interface {
+	GetMinMonthlyFee() (int64, error)
+	GetRemainingMonthlyFee() (int64, error)
+}
+type Reporter interface {
+	DisbursementsByYear(logger slog.Logger, ctx context.Context) (Report, error)
+	DisbursementsByRange(logger slog.Logger, ctx context.Context, start time.Time, end time.Time) (Report, error)
+	MerchantDisbursements(logger slog.Logger, ctx context.Context, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
+}
+
+type Import struct {
+	logger            slog.Logger
+	ctx               context.Context
+	ordersFileName    string
+	merchantsFileName string
+}
+
+func NewImport(logger slog.Logger, ctx context.Context) *Import {
+	return &Import{
+		logger:            logger,
+		ctx:               ctx,
+		ordersFileName:    OREDERS_FILENAME,
+		merchantsFileName: MERCHANTS_FILENAME,
+	}
+}
+
+func (i *Import) ImportOrders() error {
+	orders, err := parseDataFromOrders(i.ordersFileName)
+	if err != nil {
+		i.logger.Error("failed to parse data from orders", err.Error())
+	}
+}
+
+type Report struct {
+	Name     string
+	Merchant Merchant
+	Start    time.Time
+	End      time.Time
+	data     []byte
+}
+
+// DisbursementsByYear meets the requiements outlined in the system requirement for calculating the total number of disbursements,
+// amount disbursed to merchants, amount of order fees, number of minimum monthly fees charged, and total amount in monthly fees charged.
+func (r *Report) DisbursementsByYear(logger slog.Logger, ctx context.Context) (Report, error) {
+	//TODO Implement
+	return Report{}, errors.New("not implemented")
 }
 
 type Order struct {

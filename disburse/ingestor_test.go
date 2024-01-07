@@ -29,13 +29,13 @@ func Test_importDataFromOrders(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := importDataFromOrders(tt.fileName)
+			got, err := parseDataFromOrders(tt.fileName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("importDataFromOrders() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("parseDataFromOrders() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if !reflect.DeepEqual(got, tt.want) {
-				t.Errorf("importDataFromOrders() = %v, want %v", got, tt.want)
+				t.Errorf("parseDataFromOrders() = %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -99,14 +99,14 @@ func Test_importDataFromMerchants(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := importDataFromMerchants(tt.fileName)
+			got, err := parseDataFromMerchants(tt.fileName)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("importDataFromMerchants() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("parseDataFromMerchants() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			for _, v := range refs {
 				if !reflect.DeepEqual(got[v], tt.want[v]) {
-					t.Errorf("importDataFromMerchants() = %v, want %v", got[v], tt.want[v])
+					t.Errorf("parseDataFromMerchants() = %v, want %v", got[v], tt.want[v])
 				}
 			}
 		})

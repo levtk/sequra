@@ -1,11 +1,18 @@
 package main
 
 import (
+	"database/sql"
 	"fmt"
+	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"os"
 
 	d "github.com/levtk/sequra/disburse"
+)
+
+const (
+	driverName = "sqlite3"
+	DSN        = "disbursement.DSN"
 )
 
 func main() {
@@ -16,7 +23,13 @@ func main() {
 	}
 
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+
 	logger.Info("starting disbursement service on", "hostname", hostname)
+	logger.Info("staring database...")
+	db, err := sql.Open(driverName, DSN)
+	if err != nil {
+		logger.Error("failed to connect to db", err.Error())
+	}
 
 	err = d.Disburser.ProcessOrder()
 
