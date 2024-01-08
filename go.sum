@@ -14,6 +14,8 @@ github.com/levtk/sequra/disburse v0.0.0-20240108161356-829df9e2b2ac h1:QDKV/tFLp
 github.com/levtk/sequra/disburse v0.0.0-20240108161356-829df9e2b2ac/go.mod h1:tX55i/t5MHFMC/unmx+Vw+0CBK7Fj+/4MFvvKYVDsCk=
 github.com/levtk/sequra/disburse v0.0.0-20240108163152-4aae6f0d4929 h1:j8KsYDbPTrH1PmiECzVxSTSH2it16rBu+0KOWgAKgKg=
 github.com/levtk/sequra/disburse v0.0.0-20240108163152-4aae6f0d4929/go.mod h1:tX55i/t5MHFMC/unmx+Vw+0CBK7Fj+/4MFvvKYVDsCk=
+github.com/levtk/sequra/disburse v0.0.0-20240108163322-d59cb2b313a2 h1:HrmrxVaWcx6+EclDvqDtLQE43Qsu6ksabMP0IQgYb7I=
+github.com/levtk/sequra/disburse v0.0.0-20240108163322-d59cb2b313a2/go.mod h1:tX55i/t5MHFMC/unmx+Vw+0CBK7Fj+/4MFvvKYVDsCk=
 github.com/levtk/sequra/repo v0.0.0-20240108122924-d948c2a31e5a h1:y+Gzdim8uC5vziwvyNNH8+iGFUxRVZsfLnyYsEWi+Zs=
 github.com/levtk/sequra/repo v0.0.0-20240108122924-d948c2a31e5a/go.mod h1:gPVAUMd9uLtpsBMx5qbErF8T4bgvzfrnQfQfo+etr3M=
 github.com/levtk/sequra/repo v0.0.0-20240108123215-037f9639f5f6 h1:hTMFYrDDC7cCM20gFCvJWaAOlX+6OyoVRQHZ0FS+ULo=
@@ -26,5 +28,7 @@ github.com/levtk/sequra/repo v0.0.0-20240108161356-829df9e2b2ac h1:kw0o5nSX29Jfo
 github.com/levtk/sequra/repo v0.0.0-20240108161356-829df9e2b2ac/go.mod h1:gPVAUMd9uLtpsBMx5qbErF8T4bgvzfrnQfQfo+etr3M=
 github.com/levtk/sequra/repo v0.0.0-20240108163152-4aae6f0d4929 h1:YX2q/Fozu/wnG2YXKpZ9w2h9ZwvMyOyHfdtSEL5FGL8=
 github.com/levtk/sequra/repo v0.0.0-20240108163152-4aae6f0d4929/go.mod h1:gPVAUMd9uLtpsBMx5qbErF8T4bgvzfrnQfQfo+etr3M=
+github.com/levtk/sequra/repo v0.0.0-20240108163322-d59cb2b313a2 h1:U2bQ+FDIqEisx3QBVNGjgRCGWFhDffzE8OhnOtk5mQE=
+github.com/levtk/sequra/repo v0.0.0-20240108163322-d59cb2b313a2/go.mod h1:gPVAUMd9uLtpsBMx5qbErF8T4bgvzfrnQfQfo+etr3M=
 github.com/mattn/go-sqlite3 v1.14.19 h1:fhGleo2h1p8tVChob4I9HpmVFIAkKGpiukdrgQbWfGI=
 github.com/mattn/go-sqlite3 v1.14.19/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
