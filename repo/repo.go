@@ -46,7 +46,7 @@ const (
 
 type DisburserRepoRepository interface {
 	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]disburse.Order, error)
-	GetMerchantDisbursementsByRange(logger slog.Logger, merchant uuid.UUID, start time.Time, end time.Time) (disburse.Report, error)
+	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (disburse.Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (disburse.Merchant, error)
 	InsertOrder(order disburse.Order) error
 	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
