@@ -102,17 +102,17 @@ type Report struct {
 
 // DisbursementsByYear meets the requirements outlined in the system requirement for calculating the total number of disbursements,
 // amount disbursed to merchants, amount of order fees, number of minimum monthly fees charged, and total amount in monthly fees charged.
-func (r *Report) DisbursementsByYear(logger *slog.Logger, ctx *context.Context) (Report, error) {
+func (r *Report) DisbursementsByYear(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) (Report, error) {
 	//TODO Implement
 	return Report{}, errors.New("not implemented")
 }
 
-func (r *Report) DisbursementsByRange(logger *slog.Logger, ctx *context.Context, start time.Time, end time.Time) (Report, error) {
+func (r *Report) DisbursementsByRange(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, start time.Time, end time.Time) (Report, error) {
 	//TODO Implement
 	return Report{}, errors.New("not implemented")
 }
 
-func (r *Report) MerchantDisbursements(logger *slog.Logger, ctx *context.Context, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error) {
+func (r *Report) MerchantDisbursements(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error) {
 	//TODO Implement
 	return Report{}, errors.New("not implemented")
 }
@@ -181,6 +181,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx *context.Context, re
 	ok, err := op.Order.IsBeforeTimeCutOff()
 	if ok && err == nil {
 		//TODO create save to disbursement table with appropriate payout frequency date tagged
+
 	}
 
 	if !ok && err == nil {
@@ -199,6 +200,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx *context.Context, re
 type Order struct {
 	ID                string    `json:"id,omitempty"`
 	MerchantReference string    `json:"merchant_reference,omitempty"`
+	MerchantID        uuid.UUID `json:"merchant_id,omitempty"`
 	Amount            int64     `json:"amount,omitempty"`
 	CreatedAt         time.Time `json:"created_at,omitempty"`
 }

@@ -38,6 +38,10 @@ const (
 
 	getOrdersByMerchantUUID = `SELECT * FROM ORDERS WHERE id=:merchantUUID;`
 
+	getOrdersByMerchantReferenceID = `SELECT * FROM ORDERS WHERE merchant_reference=:merchRef`
+
+	getMerchantByReferenceID = `SELECT * FROM MERCHANTS WHERE reference=:referenceID`
+
 	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, amount, created_at) VALUES(?,?,?,?);`
 
 	insertDisbursement = `INSERT INTO DISBURSEMENT(id, disbursement_group_id, merchReference, order_id, order_fee, running_total, payout_date, is_paid_out)
@@ -46,18 +50,22 @@ const (
 
 type DisburserRepoRepository interface {
 	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]disburse.Order, error)
+	GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]disburse.Order, error)
 	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (disburse.Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (disburse.Merchant, error)
+	GetMerchantByReferenceID(merchantReferenceID string) (disburse.Merchant, error)
 	InsertOrder(order disburse.Order) error
 	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
 }
 
 type DisburserRepo struct {
-	db                 *sql.DB
-	ctx                *context.Context
-	logger             *slog.Logger
-	insertOrder        *sql.Stmt
-	insertDisbursement *sql.Stmt
+	db                             *sql.DB
+	ctx                            *context.Context
+	logger                         *slog.Logger
+	insertOrder                    *sql.Stmt
+	insertDisbursement             *sql.Stmt
+	getOrdersByMerchantReferenceID *sql.Stmt
+	getMerchantByRefID             *sql.Stmt
 }
 
 type Disbursement struct {
@@ -76,16 +84,30 @@ func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*Disbur
 	if err != nil {
 		return &DisburserRepo{}, err
 	}
+
 	insDisbursementStmt, err := db.Prepare(insertDisbursement)
 	if err != nil {
 		return &DisburserRepo{}, err
 	}
+
+	getOrdersByMerchRefID, err := db.Prepare(getOrdersByMerchantReferenceID)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
+	getMerchantByRefID, err := db.Prepare(getMerchantByReferenceID)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
 	return &DisburserRepo{
-		db:                 db,
-		ctx:                ctx,
-		logger:             l,
-		insertOrder:        insOrderStmt,
-		insertDisbursement: insDisbursementStmt,
+		db:                             db,
+		ctx:                            ctx,
+		logger:                         l,
+		insertOrder:                    insOrderStmt,
+		insertDisbursement:             insDisbursementStmt,
+		getOrdersByMerchantReferenceID: getOrdersByMerchRefID,
+		getMerchantByRefID:             getMerchantByRefID,
 	}, nil
 }
 
@@ -94,6 +116,25 @@ func (dr *DisburserRepo) GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]disb
 	return []disburse.Order{}, errors.New("not implemented")
 }
 
+func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(logger *slog.Logger, ctx context.Context, merchRef string) ([]disburse.Order, error) {
+	var orders []disburse.Order
+	rows, err := dr.getOrdersByMerchantReferenceID.QueryContext(ctx)
+	if err != nil {
+		logger.Error("failed to getOrdersByMerchantReferenceID", err.Error())
+		return nil, err
+	}
+
+	counter := 0
+	for rows.Next() {
+		err = rows.Scan(orders[counter])
+		if err != nil {
+			logger.Error("failed to scan row into orders", err.Error())
+			return nil, err
+		}
+		counter++
+	}
+	return orders, nil
+}
 func (dr *DisburserRepo) GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (disburse.Report, error) {
 	//TODO Implement
 	return disburse.Report{}, errors.New("not implemented")
@@ -102,6 +143,15 @@ func (dr *DisburserRepo) GetMerchantDisbursementsByRange(logger slog.Logger, mer
 func (dr *DisburserRepo) GetMerchant(merchantUUID uuid.UUID) (disburse.Merchant, error) {
 	//TODO Implemement
 	return disburse.Merchant{}, errors.New("not implemented")
+}
+
+func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (disburse.Merchant, error) {
+	m := disburse.Merchant{}
+	err := dr.getMerchantByRefID.QueryRow(merchantReferenceID).Scan(m)
+	if err != nil {
+		return m, err
+	}
+	return m, nil
 }
 
 func (dr *DisburserRepo) InsertOrder(o disburse.Order) error {
