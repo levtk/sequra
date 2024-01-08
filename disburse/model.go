@@ -44,9 +44,9 @@ func NewDisburserService(logger *slog.Logger, ctx *context.Context, db *sql.DB) 
 		return &DisburserService{}, err
 	}
 
-	importer := NewImport(logger, ctx)
-	orderProcessor := NewOrderProcessor(logger, ctx)
-	reporter := NewReporter(logger, ctx)
+	importer := NewImport(logger, ctx, repo)
+	orderProcessor := NewOrderProcessor(logger, ctx, repo)
+	reporter := NewReporter(logger, ctx, repo)
 	return &DisburserService{
 		logger:       logger,
 		ctx:          ctx,
@@ -62,7 +62,7 @@ type Importer interface {
 	ImportOrders() ([]Order, map[string]Merchant, error)
 }
 type OrderProcessor interface {
-	ProcessOrder(o *Order) error
+	ProcessOrder(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepoRepository, o *Order) error
 }
 
 type Seller interface {
@@ -70,15 +70,16 @@ type Seller interface {
 	GetMinMonthlyFeeRemaining() (int64, error)
 }
 type Reporter interface {
-	DisbursementsByYear(logger *slog.Logger, ctx *context.Context) (Report, error)
-	DisbursementsByRange(logger *slog.Logger, ctx *context.Context, start time.Time, end time.Time) (Report, error)
-	MerchantDisbursements(logger *slog.Logger, ctx *context.Context, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
+	DisbursementsByYear(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) (Report, error)
+	DisbursementsByRange(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, start time.Time, end time.Time) (Report, error)
+	MerchantDisbursements(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
 }
 
-func NewReporter(logger *slog.Logger, ctx *context.Context) *Report {
+func NewReporter(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *Report {
 	return &Report{
 		logger:   logger,
 		ctx:      ctx,
+		repo:     repo,
 		Name:     "",
 		Merchant: Merchant{},
 		Start:    time.Time{},
@@ -93,6 +94,7 @@ type Report struct {
 	ctx      *context.Context
 	Name     string
 	Merchant Merchant
+	repo     repo.DisburserRepoRepository
 	Start    time.Time
 	End      time.Time
 	data     []byte
@@ -120,14 +122,16 @@ type Import struct {
 	ctx               *context.Context
 	ordersFileName    string
 	merchantsFileName string
+	repo              repo.DisburserRepoRepository
 }
 
-func NewImport(logger *slog.Logger, ctx *context.Context) *Import {
+func NewImport(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *Import {
 	return &Import{
 		logger:            logger,
 		ctx:               ctx,
 		ordersFileName:    OREDERS_FILENAME,
 		merchantsFileName: MERCHANTS_FILENAME,
+		repo:              repo,
 	}
 }
 
@@ -152,20 +156,22 @@ func (i *Import) ImportOrders() ([]Order, map[string]Merchant, error) {
 
 type OProcessor struct {
 	Order  *Order
+	repo   repo.DisburserRepoRepository
 	logger *slog.Logger
 	ctx    *context.Context
 }
 
-func NewOrderProcessor(l *slog.Logger, ctx *context.Context) *OProcessor {
+func NewOrderProcessor(l *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *OProcessor {
 	op := &OProcessor{
 		logger: l,
 		ctx:    ctx,
+		repo:   repo,
 		Order:  nil,
 	}
 	return op
 }
 
-func (op *OProcessor) ProcessOrder(o *Order) error {
+func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepoRepository, o *Order) error {
 	op.Order = o
 	of, err := op.Order.CalculateOrderFee()
 	if err != nil {
