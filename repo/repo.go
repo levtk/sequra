@@ -54,8 +54,8 @@ type DisburserRepoRepository interface {
 
 type DisburserRepo struct {
 	db                 *sql.DB
-	ctx                context.Context
-	logger             slog.Logger
+	ctx                *context.Context
+	logger             *slog.Logger
 	insertOrder        *sql.Stmt
 	insertDisbursement *sql.Stmt
 }
@@ -71,7 +71,7 @@ type Disbursement struct {
 	IsPaidOut           bool   `DB:"is_paid_out"`
 }
 
-func NewDisburserRepo(l slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
+func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*DisburserRepo, error) {
 	insOrderStmt, err := db.Prepare(insertOrder)
 	if err != nil {
 		return &DisburserRepo{}, err
