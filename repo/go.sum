@@ -1,6 +1,6 @@
 github.com/google/uuid v1.5.0 h1:1p67kYwdtXjb0gL0BPiP1Av9wiZPo5A8z2cWkTZ+eyU=
 github.com/google/uuid v1.5.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
-github.com/levtk/sequra v0.0.0-20240107171915-d9d69c92919a h1:WrPG3i5eqdwqP4VkJRWwxUFSB2J8mofI1Wv6lOyvBpQ=
-github.com/levtk/sequra v0.0.0-20240107171915-d9d69c92919a/go.mod h1:I4yCoyf3ymxN/O74pQ6E7w+PgQ9YmL0iUlgnXYq8USA=
+github.com/levtk/sequra/disburse v0.0.0-20240107171915-d9d69c92919a h1:a8Km3OJrMq8gpG6n+w98q680V8QUXgTicNA5OBxD41A=
+github.com/levtk/sequra/disburse v0.0.0-20240107171915-d9d69c92919a/go.mod h1:qy/i/R2a4i+sdgc0A2XLjis5rH2mwhCz86mcKXIdqBo=
 github.com/mattn/go-sqlite3 v1.14.19 h1:fhGleo2h1p8tVChob4I9HpmVFIAkKGpiukdrgQbWfGI=
 github.com/mattn/go-sqlite3 v1.14.19/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=

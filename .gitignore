@@ -17,6 +17,9 @@
 #Large CSV Files
 orders.csv
 
+#disbursement.sqlite
+disbursement.sqlite
+
 # Output of the go coverage tool, specifically when used with LiteIDE
 *.out
 
