@@ -26,7 +26,6 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx *context.Context, re
 	ok, err := op.Order.IsBeforeTimeCutOff()
 	if ok && err == nil {
 		//TODO create save to disbursement table with appropriate payout frequency date tagged
-		
 	}
 
 	if !ok && err == nil {
