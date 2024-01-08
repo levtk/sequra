@@ -23,12 +23,6 @@ const (
 	MERCHANTS_FILENAME             = "merchants.csv"
 )
 
-type Disburser interface {
-	ProcessOrder(op OrderProcessor) error
-	ImportOrders(o Importer) error
-	GenerateReports(r Reporter) ([]Report, error)
-}
-
 type DisburserService struct {
 	logger       *slog.Logger
 	ctx          *context.Context
@@ -58,24 +52,7 @@ func NewDisburserService(logger *slog.Logger, ctx *context.Context, db *sql.DB) 
 
 }
 
-type Importer interface {
-	ImportOrders() ([]Order, map[string]Merchant, error)
-}
-type OrderProcessor interface {
-	ProcessOrder(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepoRepository, o *Order) error
-}
-
-type Seller interface {
-	GetMinMonthlyFee() (int64, error)
-	GetMinMonthlyFeeRemaining() (int64, error)
-}
-type Reporter interface {
-	DisbursementsByYear(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) (Report, error)
-	DisbursementsByRange(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, start time.Time, end time.Time) (Report, error)
-	MerchantDisbursements(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
-}
-
-func NewReporter(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *Report {
+func NewReporter(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo) *Report {
 	return &Report{
 		logger:   logger,
 		ctx:      ctx,
@@ -100,23 +77,6 @@ type Report struct {
 	data     []byte
 }
 
-// DisbursementsByYear meets the requirements outlined in the system requirement for calculating the total number of disbursements,
-// amount disbursed to merchants, amount of order fees, number of minimum monthly fees charged, and total amount in monthly fees charged.
-func (r *Report) DisbursementsByYear(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) (Report, error) {
-	//TODO Implement
-	return Report{}, errors.New("not implemented")
-}
-
-func (r *Report) DisbursementsByRange(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, start time.Time, end time.Time) (Report, error) {
-	//TODO Implement
-	return Report{}, errors.New("not implemented")
-}
-
-func (r *Report) MerchantDisbursements(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error) {
-	//TODO Implement
-	return Report{}, errors.New("not implemented")
-}
-
 type Import struct {
 	logger            *slog.Logger
 	ctx               *context.Context
@@ -125,76 +85,11 @@ type Import struct {
 	repo              repo.DisburserRepoRepository
 }
 
-func NewImport(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *Import {
-	return &Import{
-		logger:            logger,
-		ctx:               ctx,
-		ordersFileName:    OREDERS_FILENAME,
-		merchantsFileName: MERCHANTS_FILENAME,
-		repo:              repo,
-	}
-}
-
-func (i *Import) ImportOrders() ([]Order, map[string]Merchant, error) {
-	var orders []Order
-	var merchants map[string]Merchant
-
-	orders, err := parseDataFromOrders(i.ordersFileName)
-	if err != nil {
-		i.logger.Error("failed to parse data from orders", err.Error())
-		return orders, merchants, err
-	}
-
-	merchants, err = parseDataFromMerchants(i.merchantsFileName)
-	if err != nil {
-		i.logger.Error("failed to parse data from merchants", err.Error())
-		return orders, merchants, err
-	}
-
-	return orders, merchants, nil
-}
-
 type OProcessor struct {
 	Order  *Order
 	repo   repo.DisburserRepoRepository
 	logger *slog.Logger
 	ctx    *context.Context
-}
-
-func NewOrderProcessor(l *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *OProcessor {
-	op := &OProcessor{
-		logger: l,
-		ctx:    ctx,
-		repo:   repo,
-		Order:  nil,
-	}
-	return op
-}
-
-func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepoRepository, o *Order) error {
-	op.Order = o
-	of, err := op.Order.CalculateOrderFee()
-	if err != nil {
-		return err
-	}
-
-	ok, err := op.Order.IsBeforeTimeCutOff()
-	if ok && err == nil {
-		//TODO create save to disbursement table with appropriate payout frequency date tagged
-
-	}
-
-	if !ok && err == nil {
-		//TODO create GetMerchPayoutFrequency and if daily add to tomorrows payout.
-		//If weekly and liveOn day of week is not today, add to next payout date for merchant
-	}
-
-	if err != nil {
-		op.logger.Error("failed to process order", "order-id", op.Order.ID, "merchant-reference", op.Order.MerchantReference)
-		return err
-	}
-
-	return nil
 }
 
 type Order struct {
