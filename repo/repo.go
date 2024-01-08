@@ -116,11 +116,10 @@ func (dr *DisburserRepo) GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]disb
 	return []disburse.Order{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(logger *slog.Logger, ctx context.Context, merchRef string) ([]disburse.Order, error) {
+func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]disburse.Order, error) {
 	var orders []disburse.Order
 	rows, err := dr.getOrdersByMerchantReferenceID.QueryContext(ctx)
 	if err != nil {
-		logger.Error("failed to getOrdersByMerchantReferenceID", err.Error())
 		return nil, err
 	}
 
@@ -128,7 +127,6 @@ func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(logger *slog.Logger, ctx
 	for rows.Next() {
 		err = rows.Scan(orders[counter])
 		if err != nil {
-			logger.Error("failed to scan row into orders", err.Error())
 			return nil, err
 		}
 		counter++
