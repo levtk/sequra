@@ -10,5 +10,7 @@ github.com/levtk/sequra/disburse v0.0.0-20240109135634-65d68f0eb851 h1:i8P6ckmxA
 github.com/levtk/sequra/disburse v0.0.0-20240109135634-65d68f0eb851/go.mod h1:lHvyhdsLdWkAbSJMr8IhrDgEVKuDz7p+jiJ0SZzy9iM=
 github.com/levtk/sequra/disburse v0.0.0-20240109140110-ca2c83e82eef h1:Ai0qgbHZ+EIdWo2bzJq02YnLF4Zqww2HywaBuLyVN8M=
 github.com/levtk/sequra/disburse v0.0.0-20240109140110-ca2c83e82eef/go.mod h1:pJmsd/nkEhSx7H8pbrL14IWpiHd/xkgnp0GwVoLgmsI=
+github.com/levtk/sequra/disburse v0.0.0-20240109150349-e9992d8f1608 h1:qybUaT2+cSvyq0xeSwSc7NpNTEB7fraLHeK+FYiS7ok=
+github.com/levtk/sequra/disburse v0.0.0-20240109150349-e9992d8f1608/go.mod h1:2LJZ05x5Vp9kVBa+GRO/mZ6OQg2rAeohGxJdufPZnXg=
 github.com/mattn/go-sqlite3 v1.14.19 h1:fhGleo2h1p8tVChob4I9HpmVFIAkKGpiukdrgQbWfGI=
 github.com/mattn/go-sqlite3 v1.14.19/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=

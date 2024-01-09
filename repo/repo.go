@@ -5,7 +5,6 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/levtk/sequra/disburse"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"time"
@@ -55,15 +54,15 @@ const (
 )
 
 type DisburserRepoRepository interface {
-	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]disburse.Order, error)
-	GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]disburse.Order, error)
-	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (disburse.Report, error)
-	GetMerchant(merchantUUID uuid.UUID) (disburse.Merchant, error)
-	GetMerchantByReferenceID(merchantReferenceID string) (disburse.Merchant, error)
+	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]Order, error)
+	GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]Order, error)
+	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
+	GetMerchant(merchantUUID uuid.UUID) (Merchant, error)
+	GetMerchantByReferenceID(merchantReferenceID string) (Merchant, error)
 	GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error)
-	InsertOrder(order disburse.Order) error
+	InsertOrder(order Order) error
 	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
-	InsertMerchant(m disburse.Merchant) error
+	InsertMerchant(m Merchant) error
 	CreateTables() error
 }
 
@@ -91,6 +90,34 @@ type Disbursement struct {
 	RunningTotal        int64  `DB:"running_total"`
 	PayoutDate          string `DB:"payout_date"`
 	IsPaidOut           bool   `DB:"is_paid_out"`
+}
+
+type Order struct {
+	ID                string    `json:"id,omitempty"`
+	MerchantReference string    `json:"merchant_reference,omitempty"`
+	MerchantID        uuid.UUID `json:"merchant_id,omitempty"`
+	Amount            int64     `json:"amount,omitempty"`
+	CreatedAt         time.Time `json:"created_at,omitempty"`
+}
+
+type Merchant struct {
+	ID                    uuid.UUID `json:"id,omitempty"`
+	Reference             string    `json:"reference,omitempty"`
+	Email                 string    `json:"email,omitempty"`
+	LiveOn                time.Time `json:"live_on,omitempty"`
+	DisbursementFrequency string    `json:"disbursement_frequency,omitempty"`
+	MinMonthlyFee         string    `json:"minimum_monthly_fee,omitempty"`
+}
+
+type Report struct {
+	logger   *slog.Logger
+	ctx      context.Context
+	Name     string
+	Merchant Merchant
+	repo     DisburserRepoRepository
+	Start    time.Time
+	End      time.Time
+	data     []byte
 }
 
 func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
@@ -155,13 +182,13 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 	}, nil
 }
 
-func (dr *DisburserRepo) GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]disburse.Order, error) {
+func (dr *DisburserRepo) GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]Order, error) {
 	//TODO Implement
-	return []disburse.Order{}, errors.New("not implemented")
+	return []Order{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]disburse.Order, error) {
-	var orders []disburse.Order
+func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]Order, error) {
+	var orders []Order
 	rows, err := dr.getOrdersByMerchantReferenceID.QueryContext(ctx)
 	if err != nil {
 		return nil, err
@@ -177,18 +204,18 @@ func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, mer
 	}
 	return orders, nil
 }
-func (dr *DisburserRepo) GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (disburse.Report, error) {
+func (dr *DisburserRepo) GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error) {
 	//TODO Implement
-	return disburse.Report{}, errors.New("not implemented")
+	return Report{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetMerchant(merchantUUID uuid.UUID) (disburse.Merchant, error) {
+func (dr *DisburserRepo) GetMerchant(merchantUUID uuid.UUID) (Merchant, error) {
 	//TODO Implemement
-	return disburse.Merchant{}, errors.New("not implemented")
+	return Merchant{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (disburse.Merchant, error) {
-	m := disburse.Merchant{}
+func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (Merchant, error) {
+	m := Merchant{}
 	err := dr.getMerchantByRefID.QueryRow(merchantReferenceID).Scan(m)
 	if err != nil {
 		return m, err
@@ -212,7 +239,7 @@ func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today strin
 	return refId, nil
 }
 
-func (dr *DisburserRepo) InsertOrder(o disburse.Order) error {
+func (dr *DisburserRepo) InsertOrder(o Order) error {
 	_, err := dr.insertOrder.Exec(o.ID, o.MerchantReference, o.Amount, o.CreatedAt)
 	if err != nil {
 		return err
@@ -233,7 +260,7 @@ func (dr *DisburserRepo) InsertDisbursement(d Disbursement) (lastInsertID int64,
 	return lID, nil
 }
 
-func (dr *DisburserRepo) InsertMerchant(m disburse.Merchant) error {
+func (dr *DisburserRepo) InsertMerchant(m Merchant) error {
 	_, err := dr.insertMerchant.Exec(m.ID, m.Reference, m.Email, m.LiveOn, m.DisbursementFrequency, m.MinMonthlyFee)
 	if err != nil {
 		return err
