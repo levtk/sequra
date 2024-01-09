@@ -36,6 +36,9 @@ const (
     disbursement_frequency TEXT,
     minimum_monthly_fee TEXT);`
 
+	insertMerchant = `INSERT INTO MERCHANTS (id, reference, email, live_on, disbursement_frequency, minimum_monthly_fee) VALUES (
+                    ?,?,?,?,?,?);`
+
 	getOrdersByMerchantUUID = `SELECT * FROM ORDERS WHERE id=:merchantUUID;`
 
 	getOrdersByMerchantReferenceID = `SELECT * FROM ORDERS WHERE merchant_reference=:merchRef`
@@ -59,14 +62,16 @@ type DisburserRepoRepository interface {
 	GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error)
 	InsertOrder(order disburse.Order) error
 	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
+	InsertMerchant(m disburse.Merchant) error
 }
 
 type DisburserRepo struct {
 	db                             *sql.DB
-	ctx                            *context.Context
+	ctx                            context.Context
 	logger                         *slog.Logger
 	insertOrder                    *sql.Stmt
 	insertDisbursement             *sql.Stmt
+	insertMerchant                 *sql.Stmt
 	getOrdersByMerchantReferenceID *sql.Stmt
 	getMerchantByRefID             *sql.Stmt
 	getDisbursementGroupID         *sql.Stmt
@@ -83,13 +88,18 @@ type Disbursement struct {
 	IsPaidOut           bool   `DB:"is_paid_out"`
 }
 
-func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*DisburserRepo, error) {
+func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
 	insOrderStmt, err := db.Prepare(insertOrder)
 	if err != nil {
 		return &DisburserRepo{}, err
 	}
 
 	insDisbursementStmt, err := db.Prepare(insertDisbursement)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
+	insertMerchantStmt, err := db.Prepare(insertMerchant)
 	if err != nil {
 		return &DisburserRepo{}, err
 	}
@@ -104,7 +114,7 @@ func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*Disbur
 		return &DisburserRepo{}, err
 	}
 
-	getDisburseGroupID, err := db.Prepare(getOrdersByMerchantReferenceID)
+	getDisburseGroupID, err := db.Prepare(getDisbursementGroupID)
 	if err != nil {
 		return &DisburserRepo{}, err
 	}
@@ -115,6 +125,7 @@ func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*Disbur
 		logger:                         l,
 		insertOrder:                    insOrderStmt,
 		insertDisbursement:             insDisbursementStmt,
+		insertMerchant:                 insertMerchantStmt,
 		getOrdersByMerchantReferenceID: getOrdersByMerchRefID,
 		getMerchantByRefID:             getMerchantByRefID,
 		getDisbursementGroupID:         getDisburseGroupID,
@@ -186,8 +197,8 @@ func (dr *DisburserRepo) InsertOrder(o disburse.Order) error {
 	return nil
 }
 
-func (dr *DisburserRepo) InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error) {
-	res, err := dr.insertDisbursement.Exec(disbursement)
+func (dr *DisburserRepo) InsertDisbursement(d Disbursement) (lastInsertID int64, err error) {
+	res, err := dr.insertDisbursement.Exec(d.ID, d.DisbursementGroupID, d.MerchReference, d.OrderID, d.OrderFee, d.RunningTotal, d.PayoutDate, d.IsPaidOut)
 	if err != nil {
 		return 0, err
 	}
@@ -197,4 +208,12 @@ func (dr *DisburserRepo) InsertDisbursement(disbursement Disbursement) (lastInse
 		return 0, err
 	}
 	return lID, nil
+}
+
+func (dr *DisburserRepo) InsertMerchant(m disburse.Merchant) error {
+	_, err := dr.insertMerchant.Exec(m.ID, m.Reference, m.Email, m.LiveOn, m.DisbursementFrequency, m.MinMonthlyFee)
+	if err != nil {
+		return err
+	}
+	return nil
 }
