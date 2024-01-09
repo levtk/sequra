@@ -37,7 +37,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 			return err
 		}
 
-		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, merch, of)
+		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, Merchant(merch), of)
 		if err != nil {
 			logger.Error("could not build disbursement", err.Error())
 			return err
