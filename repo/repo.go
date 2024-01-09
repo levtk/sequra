@@ -4,8 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	
 	"github.com/google/uuid"
+	"github.com/levtk/sequra/models"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"time"
