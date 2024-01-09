@@ -18,7 +18,7 @@ type Importer interface {
 	ImportOrders() ([]Order, map[string]Merchant, error)
 }
 type OrderProcessor interface {
-	ProcessOrder(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo, o *Order) error
+	ProcessOrder(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo, o *Order) error
 }
 
 type Seller interface {

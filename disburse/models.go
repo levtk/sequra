@@ -27,14 +27,14 @@ const (
 
 type DisburserService struct {
 	logger       *slog.Logger
-	ctx          *context.Context
+	ctx          context.Context
 	ProcessOrder OrderProcessor
 	Importer     Importer
 	Reporter     Reporter
 	Repo         repo.DisburserRepoRepository
 }
 
-func NewDisburserService(logger *slog.Logger, ctx *context.Context, db *sql.DB) (*DisburserService, error) {
+func NewDisburserService(logger *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserService, error) {
 	repo, err := repo.NewDisburserRepo(logger, ctx, db)
 	if err != nil {
 		return &DisburserService{}, err
@@ -54,7 +54,7 @@ func NewDisburserService(logger *slog.Logger, ctx *context.Context, db *sql.DB) 
 
 }
 
-func NewReporter(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo) *Report {
+func NewReporter(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo) *Report {
 	return &Report{
 		logger:   logger,
 		ctx:      ctx,
@@ -70,7 +70,7 @@ func NewReporter(logger *slog.Logger, ctx *context.Context, repo *repo.Disburser
 // Report implements the Reporter interface
 type Report struct {
 	logger   *slog.Logger
-	ctx      *context.Context
+	ctx      context.Context
 	Name     string
 	Merchant Merchant
 	repo     repo.DisburserRepoRepository
@@ -81,17 +81,17 @@ type Report struct {
 
 type Import struct {
 	logger            *slog.Logger
-	ctx               *context.Context
+	ctx               context.Context
 	ordersFileName    string
 	merchantsFileName string
 	repo              repo.DisburserRepoRepository
 }
 
 type OProcessor struct {
-	Order  *Order
-	repo   repo.DisburserRepoRepository
-	logger *slog.Logger
-	ctx    *context.Context
+	Order                   *Order
+	disburserRepoRepository repo.DisburserRepoRepository
+	logger                  *slog.Logger
+	ctx                     context.Context
 }
 
 type Order struct {
@@ -159,14 +159,14 @@ func (m *Merchant) GetNextPayoutDate() (time.Time, error) {
 	wd := m.LiveOn.UTC().Weekday()
 	today := time.Now().UTC().Weekday()
 
-	todaysDate := time.Now().UTC()
+	todayDate := time.Now().UTC()
 
 	if int(today) == int(wd) {
-		return todaysDate, nil
+		return todayDate, nil
 	}
 
 	daysUntil := 7 - int(today)
-	return todaysDate.AddDate(0, 0, daysUntil), nil
+	return todayDate.AddDate(0, 0, daysUntil), nil
 }
 
 type DisbursementReport struct {
