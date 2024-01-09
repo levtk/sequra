@@ -46,6 +46,8 @@ const (
 
 	insertDisbursement = `INSERT INTO DISBURSEMENT(id, disbursement_group_id, merchReference, order_id, order_fee, running_total, payout_date, is_paid_out)
 	VALUES (?,?,?,?,?,?,?);`
+
+	getDisbursementGroupID = `SELECT (disbursement_group_id) FROM DISBURSEMENT WHERE payout_date=:today AND merchReference=:merchRef`
 )
 
 type DisburserRepoRepository interface {
@@ -54,6 +56,7 @@ type DisburserRepoRepository interface {
 	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (disburse.Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (disburse.Merchant, error)
 	GetMerchantByReferenceID(merchantReferenceID string) (disburse.Merchant, error)
+	GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error)
 	InsertOrder(order disburse.Order) error
 	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
 }
@@ -66,6 +69,7 @@ type DisburserRepo struct {
 	insertDisbursement             *sql.Stmt
 	getOrdersByMerchantReferenceID *sql.Stmt
 	getMerchantByRefID             *sql.Stmt
+	getDisbursementGroupID         *sql.Stmt
 }
 
 type Disbursement struct {
@@ -100,6 +104,11 @@ func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*Disbur
 		return &DisburserRepo{}, err
 	}
 
+	getDisburseGroupID, err := db.Prepare(getOrdersByMerchantReferenceID)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
 	return &DisburserRepo{
 		db:                             db,
 		ctx:                            ctx,
@@ -108,6 +117,7 @@ func NewDisburserRepo(l *slog.Logger, ctx *context.Context, db *sql.DB) (*Disbur
 		insertDisbursement:             insDisbursementStmt,
 		getOrdersByMerchantReferenceID: getOrdersByMerchRefID,
 		getMerchantByRefID:             getMerchantByRefID,
+		getDisbursementGroupID:         getDisburseGroupID,
 	}, nil
 }
 
@@ -150,6 +160,22 @@ func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (d
 		return m, err
 	}
 	return m, nil
+}
+
+// GetDisbursementGroupID returns the row with groupID if exists or err which should be ErrNoRows which tells us we need to create the groupID
+func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error) {
+	var refId string
+	row := dr.getDisbursementGroupID.QueryRowContext(ctx, today, merchRef)
+	err := row.Err()
+	if err != nil {
+		return "", err
+	}
+
+	err = row.Scan(refId)
+	if err != nil {
+		return "", err
+	}
+	return refId, nil
 }
 
 func (dr *DisburserRepo) InsertOrder(o disburse.Order) error {

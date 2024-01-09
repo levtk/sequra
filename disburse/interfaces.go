@@ -24,6 +24,7 @@ type OrderProcessor interface {
 type Seller interface {
 	GetMinMonthlyFee() (int64, error)
 	GetMinMonthlyFeeRemaining() (int64, error)
+	GetNextPayoutDate() (time.Time, error)
 }
 type Reporter interface {
 	DisbursementsByYear(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo) (Report, error)

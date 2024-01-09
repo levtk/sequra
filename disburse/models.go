@@ -21,6 +21,8 @@ const (
 	TIME_CUT_OFF            string = "08:00"
 	OREDERS_FILENAME               = "orders.csv"
 	MERCHANTS_FILENAME             = "merchants.csv"
+	WEEKLY                         = "WEEKLY"
+	DAILY                          = "DAILY"
 )
 
 type DisburserService struct {
@@ -151,6 +153,20 @@ func (m *Merchant) GetMinMonthlyFee() (int64, error) {
 func (m *Merchant) GetMinMonthlyFeeRemaining() (int64, error) {
 	//TODO Implement
 	return 0, errors.New("not implemented.")
+}
+
+func (m *Merchant) GetNextPayoutDate() (time.Time, error) {
+	wd := m.LiveOn.UTC().Weekday()
+	today := time.Now().UTC().Weekday()
+
+	todaysDate := time.Now().UTC()
+
+	if int(today) == int(wd) {
+		return todaysDate, nil
+	}
+
+	daysUntil := 7 - int(today)
+	return todaysDate.AddDate(0, 0, daysUntil), nil
 }
 
 type DisbursementReport struct {
