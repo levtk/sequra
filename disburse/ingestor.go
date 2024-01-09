@@ -3,7 +3,6 @@ package disburse
 import (
 	"bufio"
 	"encoding/csv"
-	"github.com/levtk/sequra/models"
 	"io"
 	"math"
 	"os"
@@ -13,14 +12,14 @@ import (
 	"github.com/google/uuid"
 )
 
-// importDataFromOrders imports the order data that was exported to a semicolon separated file formatted
+// parseDataFromOrders parses the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
-func importDataFromOrders(fileName string) ([]models.Order, error) {
-	var o = make([]models.Order, 1310000)
+func parseDataFromOrders(fileName string) ([]Order, error) {
+	var o = make([]Order, 1310000)
 	var counter = 0
 	ofd, err := os.Open(fileName)
 	if err != nil {
-		return []models.Order{}, err
+		return []Order{}, err
 	}
 	defer ofd.Close()
 
@@ -63,14 +62,14 @@ func importDataFromOrders(fileName string) ([]models.Order, error) {
 	}
 }
 
-// importDataFromMerchants imports the order data that was exported to a semicolon separated file formatted
+// parseDataFromMerchants parses the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
-func importDataFromMerchants(fileName string) (map[string]models.Merchant, error) {
-	var m = map[string]models.Merchant{}
+func parseDataFromMerchants(fileName string) (map[string]Merchant, error) {
+	var m = map[string]Merchant{}
 	mfd, err := os.Open(fileName)
 
 	if err != nil {
-		return map[string]models.Merchant{}, err
+		return map[string]Merchant{}, err
 	}
 
 	defer mfd.Close()
@@ -104,7 +103,7 @@ func importDataFromMerchants(fileName string) (map[string]models.Merchant, error
 		}
 
 		if err == nil {
-			merchant := models.Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
+			merchant := Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
 			m[rec[1]] = merchant
 		}
 	}
