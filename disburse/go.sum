@@ -10,5 +10,9 @@ github.com/levtk/sequra/repo v0.0.0-20240109094919-492714fc606d h1:mBcm3CVN+e5wB
 github.com/levtk/sequra/repo v0.0.0-20240109094919-492714fc606d/go.mod h1:WOkfMgbVVjaYsXXNJLfs8X1wzeb82ClHdckQ8ew7Gy8=
 github.com/levtk/sequra/repo v0.0.0-20240109135634-65d68f0eb851 h1:xpYr7dO56El7/eipeMAt6x0qjk9wTgKtJ8cqoOobXVo=
 github.com/levtk/sequra/repo v0.0.0-20240109135634-65d68f0eb851/go.mod h1:WOkfMgbVVjaYsXXNJLfs8X1wzeb82ClHdckQ8ew7Gy8=
+github.com/levtk/sequra/repo v0.0.0-20240109140110-ca2c83e82eef h1:PznRtxfK+gAy78pc0m5dQn0ttPqbi42XLU/nTFBzJPM=
+github.com/levtk/sequra/repo v0.0.0-20240109140110-ca2c83e82eef/go.mod h1:WOkfMgbVVjaYsXXNJLfs8X1wzeb82ClHdckQ8ew7Gy8=
+github.com/levtk/sequra/repo v0.0.0-20240109142644-0e4595b3566f h1:qWugdly2MUUNaw4IrDbsdPEWFCK0uorinr05Sv2SVQM=
+github.com/levtk/sequra/repo v0.0.0-20240109142644-0e4595b3566f/go.mod h1:0bLEWKTVYm2ECyJmOXVWMKsmjgvmHZbDEyF6p/nltOs=
 github.com/mattn/go-sqlite3 v1.14.19 h1:fhGleo2h1p8tVChob4I9HpmVFIAkKGpiukdrgQbWfGI=
 github.com/mattn/go-sqlite3 v1.14.19/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=

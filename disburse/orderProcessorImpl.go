@@ -22,7 +22,7 @@ func NewOrderProcessor(l *slog.Logger, ctx context.Context, disburserRepo *repo.
 
 // ProcessOrder processes an order by performing calculations on fees, order cutoff time, and disbursement frequencies. It then
 // // inserts the resulting disbursement object into the disbursement table. This does not include disbursing payments which is another process.
-func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, disburserRepo *repo.DisburserRepo, o *Order) error {
+func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order) error {
 	op.Order = o
 	of, err := op.Order.CalculateOrderFee()
 	if err != nil {
@@ -54,7 +54,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 
 // buildDisbursement contains the logic to determine if the order is before the cutoff time and whether the merchant is disbursed daily or weekly. It then
 // builds the repo.Disbursement struct filling the required fields.
-func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo *repo.DisburserRepo, o *Order, merch Merchant, orderFee int64) (repo.Disbursement, error) {
+func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch Merchant, orderFee int64) (repo.Disbursement, error) {
 	disbursementID := uuid.NewString()
 	var pd time.Time
 	var payoutDate string

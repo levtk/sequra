@@ -18,7 +18,7 @@ type Importer interface {
 	ImportOrders() ([]Order, map[string]Merchant, error)
 }
 type OrderProcessor interface {
-	ProcessOrder(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo, o *Order) error
+	ProcessOrder(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, o *Order) error
 }
 
 type Seller interface {
@@ -27,7 +27,7 @@ type Seller interface {
 	GetNextPayoutDate() (time.Time, error)
 }
 type Reporter interface {
-	DisbursementsByYear(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo) (Report, error)
-	DisbursementsByRange(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo, start time.Time, end time.Time) (Report, error)
-	MerchantDisbursements(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
+	DisbursementsByYear(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository) (Report, error)
+	DisbursementsByRange(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, start time.Time, end time.Time) (Report, error)
+	MerchantDisbursements(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
 }

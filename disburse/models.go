@@ -89,7 +89,7 @@ type Import struct {
 
 type OProcessor struct {
 	Order                   *Order
-	disburserRepoRepository repo.DisburserRepoRepository
+	disburserRepoRepository *repo.DisburserRepo
 	logger                  *slog.Logger
 	ctx                     context.Context
 }
