@@ -15,6 +15,7 @@ const (
 	createDisbursementTable = `CREATE TABLE IF NOT EXISTS DISBURSEMENT (
     id TEXT NOT NULL PRIMARY KEY,
     disbursement_group_id TEXT,
+    transaction_id TEXT, -- not implemented. when payout is confirmed by payment method/system the id for the payment transaction should be saved
     merchReference TEXT NOT NULL,
     order_id TEXT NOT NULL,
     order_fee INT NOT NULL,
@@ -63,6 +64,7 @@ type DisburserRepoRepository interface {
 	InsertOrder(order disburse.Order) error
 	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
 	InsertMerchant(m disburse.Merchant) error
+	CreateTables() error
 }
 
 type DisburserRepo struct {
@@ -75,6 +77,9 @@ type DisburserRepo struct {
 	getOrdersByMerchantReferenceID *sql.Stmt
 	getMerchantByRefID             *sql.Stmt
 	getDisbursementGroupID         *sql.Stmt
+	createDisbursementsTable       *sql.Stmt
+	createOrdersTable              *sql.Stmt
+	createMerchantsTable           *sql.Stmt
 }
 
 type Disbursement struct {
@@ -119,6 +124,21 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		return &DisburserRepo{}, err
 	}
 
+	createDisTable, err := db.Prepare(createDisbursementTable)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
+	createOrdersTabel, err := db.Prepare(createOrdersTable)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
+	createMerchTable, err := db.Prepare(createMerchantsTable)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
 	return &DisburserRepo{
 		db:                             db,
 		ctx:                            ctx,
@@ -129,6 +149,9 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		getOrdersByMerchantReferenceID: getOrdersByMerchRefID,
 		getMerchantByRefID:             getMerchantByRefID,
 		getDisbursementGroupID:         getDisburseGroupID,
+		createDisbursementsTable:       createDisTable,
+		createMerchantsTable:           createMerchTable,
+		createOrdersTable:              createOrdersTabel,
 	}, nil
 }
 
@@ -215,5 +238,24 @@ func (dr *DisburserRepo) InsertMerchant(m disburse.Merchant) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func (dr *DisburserRepo) CreateTables() error {
+	_, err := dr.createDisbursementsTable.Exec()
+	if err != nil {
+		return err
+	}
+
+	_, err = dr.createMerchantsTable.Exec()
+	if err != nil {
+		return err
+	}
+
+	_, err = dr.createOrdersTable.Exec()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
