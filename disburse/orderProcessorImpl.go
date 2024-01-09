@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-func NewOrderProcessor(l *slog.Logger, ctx *context.Context, disburserRepo *repo.DisburserRepo) *OProcessor {
+func NewOrderProcessor(l *slog.Logger, ctx context.Context, disburserRepo *repo.DisburserRepo) *OProcessor {
 	op := &OProcessor{
 		logger:                  l,
 		ctx:                     ctx,

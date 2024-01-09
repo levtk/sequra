@@ -27,7 +27,7 @@ type Seller interface {
 	GetNextPayoutDate() (time.Time, error)
 }
 type Reporter interface {
-	DisbursementsByYear(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo) (Report, error)
-	DisbursementsByRange(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo, start time.Time, end time.Time) (Report, error)
-	MerchantDisbursements(logger *slog.Logger, ctx *context.Context, repo *repo.DisburserRepo, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
+	DisbursementsByYear(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo) (Report, error)
+	DisbursementsByRange(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo, start time.Time, end time.Time) (Report, error)
+	MerchantDisbursements(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
 }

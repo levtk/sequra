@@ -6,7 +6,7 @@ import (
 	"log/slog"
 )
 
-func NewImport(logger *slog.Logger, ctx *context.Context, repo repo.DisburserRepoRepository) *Import {
+func NewImport(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository) *Import {
 	return &Import{
 		logger:            logger,
 		ctx:               ctx,

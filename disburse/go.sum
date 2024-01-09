@@ -8,5 +8,7 @@ github.com/levtk/sequra/repo v0.0.0-20240108164740-59995a3537cd h1:iwjUnKu2G5gdT
 github.com/levtk/sequra/repo v0.0.0-20240108164740-59995a3537cd/go.mod h1:FNWMrywHxGNm5TataA7Dc/CroASaNgSdHE+GiJJtnWY=
 github.com/levtk/sequra/repo v0.0.0-20240109094919-492714fc606d h1:mBcm3CVN+e5wB5jVavfsNlz5Dzl0Anqx/d/HVfrvDc0=
 github.com/levtk/sequra/repo v0.0.0-20240109094919-492714fc606d/go.mod h1:WOkfMgbVVjaYsXXNJLfs8X1wzeb82ClHdckQ8ew7Gy8=
+github.com/levtk/sequra/repo v0.0.0-20240109135634-65d68f0eb851 h1:xpYr7dO56El7/eipeMAt6x0qjk9wTgKtJ8cqoOobXVo=
+github.com/levtk/sequra/repo v0.0.0-20240109135634-65d68f0eb851/go.mod h1:WOkfMgbVVjaYsXXNJLfs8X1wzeb82ClHdckQ8ew7Gy8=
 github.com/mattn/go-sqlite3 v1.14.19 h1:fhGleo2h1p8tVChob4I9HpmVFIAkKGpiukdrgQbWfGI=
 github.com/mattn/go-sqlite3 v1.14.19/go.mod h1:2eHXhiwb8IkHr+BDWZGa96P6+rkvnG63S2DGjv9HUNg=
