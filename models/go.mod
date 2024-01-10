@@ -1,4 +1,4 @@
-module github.com/levtk/sequra/models
+module models
 
 go 1.21.5
 
