@@ -55,7 +55,7 @@ const (
 )
 
 type DisburserRepoRepository interface {
-	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]Order, error)
+	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]models.Order, error)
 	GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]Order, error)
 	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (Merchant, error)
