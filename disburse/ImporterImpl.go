@@ -20,9 +20,9 @@ func NewImport(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepo
 	}
 }
 
-func (i *Import) ImportOrders() (Orders, map[string]types.Merchant, error) {
+func (i *Import) ImportOrders() (Orders, map[string]Merchant, error) {
 	var orders Orders
-	var merchants map[string]types.Merchant
+	var merchants map[string]Merchant
 
 	orders, err := parseDataFromOrders(i.OrdersFileName)
 	if err != nil {
