@@ -2,7 +2,6 @@ package interfaces
 
 import (
 	"github.com/google/uuid"
-	"github.com/levtk/sequra/models"
 	"time"
 )
 

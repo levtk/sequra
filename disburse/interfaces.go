@@ -4,6 +4,7 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/levtk/sequra/repo"
+	"github.com/levtk/sequra/types"
 	"log/slog"
 	"time"
 )
@@ -15,7 +16,7 @@ type Disburser interface {
 }
 
 type Importer interface {
-	ImportOrders() ([]Order, map[string]Merchant, error)
+	ImportOrders() (Orders, map[string]types.Merchant, error)
 }
 type OrderProcessor interface {
 	ProcessOrder(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, o *Order) error

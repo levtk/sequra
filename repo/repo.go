@@ -5,38 +5,14 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/google/uuid"
-	"github.com/levtk/sequra/models"
+	"github.com/levtk/sequra/reports"
+	"github.com/levtk/sequra/types"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"time"
 )
 
 const (
-	createDisbursementTable = `CREATE TABLE IF NOT EXISTS DISBURSEMENT (
-    id TEXT NOT NULL PRIMARY KEY,
-    disbursement_group_id TEXT,
-    transaction_id TEXT, -- not implemented. when payout is confirmed by payment method/system the id for the payment transaction should be saved
-    merchReference TEXT NOT NULL,
-    order_id TEXT NOT NULL,
-    order_fee INT NOT NULL,
-    running_total INT,
-    payout_date TEXT,
-    is_paid_out BOOLEAN);`
-
-	createOrdersTable = `CREATE TABLE IF NOT EXISTS ORDERS (
-    id TEXT NOT NULL PRIMARY KEY,
-    merchant_reference TEXT NOT NULL,
-    amount INT NOT NULL,
-    created_at TEXT);`
-
-	createMerchantsTable = `CREATE TABLE IF NOT EXISTS MERCHANTS (
-    id TEXT PRIMARY KEY,
-    reference TEXT,
-    email TEXT,
-    live_on TEXT,
-    disbursement_frequency TEXT,
-    minimum_monthly_fee TEXT);`
-
 	insertMerchant = `INSERT INTO MERCHANTS (id, reference, email, live_on, disbursement_frequency, minimum_monthly_fee) VALUES (
                     ?,?,?,?,?,?);`
 
@@ -49,22 +25,21 @@ const (
 	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, amount, created_at) VALUES(?,?,?,?);`
 
 	insertDisbursement = `INSERT INTO DISBURSEMENT(id, disbursement_group_id, merchReference, order_id, order_fee, running_total, payout_date, is_paid_out)
-	VALUES (?,?,?,?,?,?,?);`
+	VALUES (?,?,?,?,?,?,?,?);`
 
 	getDisbursementGroupID = `SELECT (disbursement_group_id) FROM DISBURSEMENT WHERE payout_date=:today AND merchReference=:merchRef`
 )
 
 type DisburserRepoRepository interface {
-	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]models.Order, error)
-	GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]Order, error)
-	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
-	GetMerchant(merchantUUID uuid.UUID) (Merchant, error)
-	GetMerchantByReferenceID(merchantReferenceID string) (Merchant, error)
+	GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]types.Order, error)
+	GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]types.Order, error)
+	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (reports.Report, error)
+	GetMerchant(merchantUUID uuid.UUID) (types.Merchant, error)
+	GetMerchantByReferenceID(merchantReferenceID string) (types.Merchant, error)
 	GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error)
-	InsertOrder(order Order) error
-	InsertDisbursement(disbursement Disbursement) (lastInsertID int64, err error)
-	InsertMerchant(m Merchant) error
-	CreateTables() error
+	InsertOrder(order types.Order) error
+	InsertDisbursement(disbursement types.Disbursement) (lastInsertID int64, err error)
+	InsertMerchant(m types.Merchant) error
 }
 
 type DisburserRepo struct {
@@ -78,7 +53,6 @@ type DisburserRepo struct {
 	getMerchantByRefID             *sql.Stmt
 	getDisbursementGroupID         *sql.Stmt
 	createDisbursementsTable       *sql.Stmt
-	createOrdersTable              *sql.Stmt
 	createMerchantsTable           *sql.Stmt
 }
 
@@ -152,21 +126,6 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		return &DisburserRepo{}, err
 	}
 
-	createDisTable, err := db.Prepare(createDisbursementTable)
-	if err != nil {
-		return &DisburserRepo{}, err
-	}
-
-	createOrdersTabel, err := db.Prepare(createOrdersTable)
-	if err != nil {
-		return &DisburserRepo{}, err
-	}
-
-	createMerchTable, err := db.Prepare(createMerchantsTable)
-	if err != nil {
-		return &DisburserRepo{}, err
-	}
-
 	return &DisburserRepo{
 		db:                             db,
 		ctx:                            ctx,
@@ -177,19 +136,16 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		getOrdersByMerchantReferenceID: getOrdersByMerchRefID,
 		getMerchantByRefID:             getMerchantByRefID,
 		getDisbursementGroupID:         getDisburseGroupID,
-		createDisbursementsTable:       createDisTable,
-		createMerchantsTable:           createMerchTable,
-		createOrdersTable:              createOrdersTabel,
 	}, nil
 }
 
-func (dr *DisburserRepo) GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]Order, error) {
+func (dr *DisburserRepo) GetOrdersByMerchantUUID(merchantUUID uuid.UUID) ([]types.Order, error) {
 	//TODO Implement
-	return []Order{}, errors.New("not implemented")
+	return []types.Order{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]Order, error) {
-	var orders []Order
+func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, merchRef string) ([]types.Order, error) {
+	var orders []types.Order
 	rows, err := dr.getOrdersByMerchantReferenceID.QueryContext(ctx)
 	if err != nil {
 		return nil, err
@@ -205,23 +161,29 @@ func (dr *DisburserRepo) GetOrdersByMerchantReferenceID(ctx context.Context, mer
 	}
 	return orders, nil
 }
-func (dr *DisburserRepo) GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error) {
+func (dr *DisburserRepo) GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (reports.Report, error) {
 	//TODO Implement
-	return Report{}, errors.New("not implemented")
+	return reports.Report{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetMerchant(merchantUUID uuid.UUID) (Merchant, error) {
+func (dr *DisburserRepo) GetMerchant(merchantUUID uuid.UUID) (types.Merchant, error) {
 	//TODO Implemement
-	return Merchant{}, errors.New("not implemented")
+	return types.Merchant{}, errors.New("not implemented")
 }
 
-func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (Merchant, error) {
-	m := Merchant{}
-	err := dr.getMerchantByRefID.QueryRow(merchantReferenceID).Scan(m)
+func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (types.Merchant, error) {
+	var liveOn string
+	m := &types.Merchant{}
+
+	err := dr.getMerchantByRefID.QueryRow(merchantReferenceID).Scan(&m.ID, &m.Reference, &m.Email, &liveOn, &m.DisbursementFrequency, &m.MinMonthlyFee)
 	if err != nil {
-		return m, err
+		return *m, err
 	}
-	return m, nil
+	m.LiveOn, err = time.Parse("2006-01-02 15:04:05+00:00", liveOn)
+	if err != nil {
+		return *m, err
+	}
+	return *m, nil
 }
 
 // GetDisbursementGroupID returns the row with groupID if exists or err which should be ErrNoRows which tells us we need to create the groupID
@@ -234,13 +196,14 @@ func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today strin
 	}
 
 	err = row.Scan(refId)
-	if err != nil {
-		return "", err
+	if errors.Is(err, sql.ErrNoRows) {
+		dgID := uuid.NewString()
+		return dgID, nil
 	}
 	return refId, nil
 }
 
-func (dr *DisburserRepo) InsertOrder(o Order) error {
+func (dr *DisburserRepo) InsertOrder(o types.Order) error {
 	_, err := dr.insertOrder.Exec(o.ID, o.MerchantReference, o.Amount, o.CreatedAt)
 	if err != nil {
 		return err
@@ -248,7 +211,7 @@ func (dr *DisburserRepo) InsertOrder(o Order) error {
 	return nil
 }
 
-func (dr *DisburserRepo) InsertDisbursement(d Disbursement) (lastInsertID int64, err error) {
+func (dr *DisburserRepo) InsertDisbursement(d types.Disbursement) (lastInsertID int64, err error) {
 	res, err := dr.insertDisbursement.Exec(d.ID, d.DisbursementGroupID, d.MerchReference, d.OrderID, d.OrderFee, d.RunningTotal, d.PayoutDate, d.IsPaidOut)
 	if err != nil {
 		return 0, err
@@ -261,29 +224,10 @@ func (dr *DisburserRepo) InsertDisbursement(d Disbursement) (lastInsertID int64,
 	return lID, nil
 }
 
-func (dr *DisburserRepo) InsertMerchant(m Merchant) error {
+func (dr *DisburserRepo) InsertMerchant(m types.Merchant) error {
 	_, err := dr.insertMerchant.Exec(m.ID, m.Reference, m.Email, m.LiveOn, m.DisbursementFrequency, m.MinMonthlyFee)
 	if err != nil {
 		return err
 	}
-	return nil
-}
-
-func (dr *DisburserRepo) CreateTables() error {
-	_, err := dr.createDisbursementsTable.Exec()
-	if err != nil {
-		return err
-	}
-
-	_, err = dr.createMerchantsTable.Exec()
-	if err != nil {
-		return err
-	}
-
-	_, err = dr.createOrdersTable.Exec()
-	if err != nil {
-		return err
-	}
-
 	return nil
 }

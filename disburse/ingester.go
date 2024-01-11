@@ -3,23 +3,22 @@ package disburse
 import (
 	"bufio"
 	"encoding/csv"
+	"github.com/google/uuid"
 	"io"
 	"math"
 	"os"
 	"strconv"
 	"time"
-
-	"github.com/google/uuid"
 )
 
 // parseDataFromOrders parses the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
-func parseDataFromOrders(fileName string) ([]Order, error) {
-	var o = make([]Order, 1310000)
+func parseDataFromOrders(fileName string) (Orders, error) {
+	var o = make(Orders, 1310000)
 	var counter = 0
 	ofd, err := os.Open(fileName)
 	if err != nil {
-		return []Order{}, err
+		return o, err
 	}
 	defer ofd.Close()
 
@@ -27,13 +26,13 @@ func parseDataFromOrders(fileName string) ([]Order, error) {
 	r.Comma = ';'
 
 	for {
-
 		rec, err := r.Read()
 		if err == nil {
 			line, _ := r.FieldPos(0)
 			if line == 1 { //skipping header line
 				continue
 			}
+
 			o[counter].ID = rec[0]
 			o[counter].MerchantReference = rec[1]
 			amount, err := strconv.ParseFloat(rec[2], 64)
@@ -64,6 +63,7 @@ func parseDataFromOrders(fileName string) ([]Order, error) {
 
 // parseDataFromMerchants parses the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
+// which returns a map[string]types.Merchant where the key is Merchant.reference
 func parseDataFromMerchants(fileName string) (map[string]Merchant, error) {
 	var m = map[string]Merchant{}
 	mfd, err := os.Open(fileName)

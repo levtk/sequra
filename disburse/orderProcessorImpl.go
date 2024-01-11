@@ -2,10 +2,10 @@ package disburse
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/levtk/sequra/repo"
+	"github.com/levtk/sequra/types"
 	"log/slog"
 	"time"
 )
@@ -31,21 +31,24 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 
 	ok, err := op.Order.IsBeforeTimeCutOff()
 	if ok && err == nil {
+		o.Lock()
 		merch, err := disburserRepo.GetMerchantByReferenceID(o.MerchantReference)
+		o.Unlock()
 		if err != nil {
-			logger.Error("failed to get merchant by reference id", err.Error())
+			logger.Error("failed to get merchant by reference id", "error", err.Error())
 			return err
 		}
-
+		o.Lock()
 		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, Merchant(merch), of)
+		o.Unlock()
 		if err != nil {
-			logger.Error("could not build disbursement", err.Error())
+			logger.Error("could not build disbursement", "error", err.Error())
 			return err
 		}
 
 		_, err = disburserRepo.InsertDisbursement(disbursement)
 		if err != nil {
-			logger.Error("failed to insert disbursement", err.Error())
+			logger.Error("failed to insert disbursement", "error", err.Error())
 			return err
 		}
 	}
@@ -53,8 +56,8 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 }
 
 // buildDisbursement contains the logic to determine if the order is before the cutoff time and whether the merchant is disbursed daily or weekly. It then
-// builds the repo.Disbursement struct filling the required fields.
-func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch Merchant, orderFee int64) (repo.Disbursement, error) {
+// builds the Disbursement struct filling the required fields.
+func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch Merchant, orderFee int64) (types.Disbursement, error) {
 	disbursementID := uuid.NewString()
 	var pd time.Time
 	var payoutDate string
@@ -73,26 +76,24 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 	case WEEKLY:
 		pd, err := merch.GetNextPayoutDate()
 		if err != nil {
-			return repo.Disbursement{}, err
+			return types.Disbursement{}, err
 		}
 		payoutDate = pd.Format(time.DateOnly)
 
 	default:
-		return repo.Disbursement{}, errors.New("merchants disbursement frequency is not supported")
+		return types.Disbursement{}, errors.New("merchants disbursement frequency is not supported")
 	}
 
 	var disbursementGroupID string
 	disbGrpID, err := disburserRepo.GetDisbursementGroupID(ctx, payoutDate, merch.Reference)
 	if err == nil {
 		disbursementGroupID = disbGrpID
-	} else if errors.Is(sql.ErrNoRows, err) {
-		disbursementGroupID = uuid.NewString()
 	} else {
-		logger.Error("could not get disbursement group id from disburserRepoRepository", err.Error())
-		return repo.Disbursement{}, err
+		logger.Error("could not get disbursement group id or create it from disburserRepoRepository", "error", err.Error())
+		return types.Disbursement{}, err
 	}
 
-	return repo.Disbursement{
+	return types.Disbursement{
 		ID:                  disbursementID,
 		DisbursementGroupID: disbursementGroupID,
 		MerchReference:      merch.Reference,

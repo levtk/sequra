@@ -11,7 +11,7 @@ import (
 
 const (
 	driverName = "sqlite3"
-	DSN        = "disbursement.DSN"
+	DSN        = "./disbursement.sqlite"
 )
 
 func main() {
@@ -33,12 +33,7 @@ func main() {
 
 	disburserService, err := d.NewDisburserService(logger, ctx, db)
 	if err != nil {
-		logger.Error("failed to instantiate the disburser service on host: ", hostname)
-	}
-	logger.Info("creating tables for disbursement database...")
-	err = disburserService.Repo.CreateTables()
-	if err != nil {
-		logger.Error("failed to create tables for disbursement app. Does db exist? ", err.Error())
+		logger.Error("failed to instantiate the disburser service on ", "hostname", hostname, "error", err.Error())
 	}
 
 	//TODO write func to check if orders were already imported. Store in db table hash of file
@@ -48,7 +43,7 @@ func main() {
 	}
 
 	for _, v := range merchants {
-		err := disburserService.Repo.InsertMerchant(v) //TODO fix imports by making models module
+		err := disburserService.Repo.InsertMerchant(v) //TODO fix imports by making types module
 		if err != nil {
 			logger.Error(err.Error())
 		}
