@@ -39,7 +39,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 			return err
 		}
 		o.Lock()
-		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, Merchant(merch), of)
+		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, merch, of)
 		o.Unlock()
 		if err != nil {
 			logger.Error("could not build disbursement", "error", err.Error())
@@ -57,13 +57,13 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 
 // buildDisbursement contains the logic to determine if the order is before the cutoff time and whether the merchant is disbursed daily or weekly. It then
 // builds the Disbursement struct filling the required fields.
-func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch Merchant, orderFee int64) (types.Disbursement, error) {
+func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch types.Merchant, orderFee int64) (types.Disbursement, error) {
 	disbursementID := uuid.NewString()
 	var pd time.Time
 	var payoutDate string
 	disbursementFreq := merch.DisbursementFrequency
 	switch disbursementFreq {
-	case DAILY:
+	case types.DAILY:
 		ok, err := o.IsBeforeTimeCutOff()
 		if ok && err == nil {
 			pd = time.Now().UTC()
@@ -73,7 +73,7 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 		}
 		payoutDate = pd.Format(time.DateOnly)
 
-	case WEEKLY:
+	case types.WEEKLY:
 		pd, err := merch.GetNextPayoutDate()
 		if err != nil {
 			return types.Disbursement{}, err
@@ -103,4 +103,18 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 		PayoutDate:          payoutDate,
 		IsPaidOut:           false,
 	}, err
+}
+
+func (op *OProcessor) ProcessBatchDistributions(disbursements []types.Disbursement) error {
+	count := 0
+	for _, v := range disbursements {
+		_, err := op.disburserRepoRepository.InsertDisbursement(v)
+		if err != nil {
+			op.logger.Error("error inserting disbursement record", err.Error())
+			return err
+		}
+		count++
+	}
+	op.logger.Info("number of disbursement records inserted: ", count)
+	return nil
 }

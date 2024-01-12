@@ -37,7 +37,7 @@ func main() {
 	}
 
 	//TODO write func to check if orders were already imported. Store in db table hash of file
-	orders, merchants, err := disburserService.Importer.ImportOrders()
+	distributions, merchants, err := disburserService.Importer.ImportOrders()
 	if err != nil {
 		logger.Error("failed to import orders or merchants", err.Error())
 	}
@@ -49,10 +49,9 @@ func main() {
 		}
 
 	}
-	for _, v := range orders {
-		err := disburserService.ProcessOrder.ProcessOrder(logger, ctx, disburserService.Repo, &v)
-		if err != nil {
-			logger.Error(err.Error())
-		}
+
+	err = disburserService.ProcessOrder.ProcessBatchDistributions(distributions)
+	if err != nil {
+		logger.Error(err.Error())
 	}
 }

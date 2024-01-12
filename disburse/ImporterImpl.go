@@ -14,20 +14,21 @@ func NewImport(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepo
 	return &Import{
 		Logger:            logger,
 		Ctx:               ctx,
-		OrdersFileName:    OREDERS_FILENAME,
-		MerchantsFileName: MERCHANTS_FILENAME,
+		OrdersFileName:    types.OREDERS_FILENAME,
+		MerchantsFileName: types.MERCHANTS_FILENAME,
 		Repo:              repo,
 	}
 }
 
-func (i *Import) ImportOrders() (Orders, map[string]Merchant, error) {
+func (i *Import) ImportOrders() ([]types.Disbursement, map[string]types.Merchant, error) {
 	var orders Orders
-	var merchants map[string]Merchant
+	var disbursements []types.Disbursement
+	var merchants map[string]types.Merchant
 
 	orders, err := parseDataFromOrders(i.OrdersFileName)
 	if err != nil {
 		i.Logger.Error("failed to parse data from orders", "error", err.Error())
-		return orders, merchants, err
+		return disbursements, merchants, err
 	}
 
 	sortOrdersByMerchant(orders)
@@ -36,11 +37,11 @@ func (i *Import) ImportOrders() (Orders, map[string]Merchant, error) {
 	merchants, err = parseDataFromMerchants(i.MerchantsFileName)
 	if err != nil {
 		i.Logger.Error("failed to parse data from merchants", "error", err.Error())
-		return orders, merchants, err
+		return disbursements, merchants, err
 	}
 
-	buildDisbursementRecordsFromImport(orders, merchants)
-	return orders, merchants, nil
+	disbursements, err = buildDisbursementRecordsFromImport(orders, merchants)
+	return disbursements, merchants, nil
 }
 
 func sortOrdersByMerchant(orders Orders) {
@@ -52,8 +53,8 @@ func sortOrdersByOrderDate(orders Orders) {
 }
 
 // calculatePayout takes a sorted list of type Orders and calculates their distribution payouts and creates the distribution id.
-func buildDisbursementRecordsFromImport(o Orders, m map[string]Merchant) ([]types.Disbursement, error) {
-	var merchant Merchant
+func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) ([]types.Disbursement, error) {
+	var merchant types.Merchant
 	var disbursements []types.Disbursement
 	var disbursementGroupID, frequency string
 	var count int
@@ -71,7 +72,7 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]Merchant) ([]type
 		if i < len(o)-1 && !newPayoutPeriod {
 			switch frequency {
 
-			case DAILY:
+			case types.DAILY:
 				if o[i].MerchantReference == o[i+1].MerchantReference && o[i].CreatedAt == o[i+1].CreatedAt {
 					orderFee, err := o[i].CalculateOrderFee()
 					if err != nil {
@@ -91,7 +92,7 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]Merchant) ([]type
 					newPayoutPeriod = true
 				}
 
-			case WEEKLY:
+			case types.WEEKLY:
 				orderFee, err := o[i].CalculateOrderFee()
 				if err != nil {
 					return disbursements, err

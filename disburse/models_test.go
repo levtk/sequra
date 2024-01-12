@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"github.com/google/uuid"
 	"github.com/levtk/sequra/repo"
+	"github.com/levtk/sequra/types"
 	"log/slog"
 	"reflect"
 	"sync"
@@ -50,7 +51,7 @@ func TestMerchant_CalculatePastPayoutDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &Merchant{
+			m := &types.Merchant{
 				ID:                    tt.fields.ID,
 				Reference:             tt.fields.Reference,
 				Email:                 tt.fields.Email,
@@ -84,7 +85,7 @@ func TestMerchant_GetMinMonthlyFee(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &Merchant{
+			m := &types.Merchant{
 				ID:                    tt.fields.ID,
 				Reference:             tt.fields.Reference,
 				Email:                 tt.fields.Email,
@@ -123,7 +124,7 @@ func TestMerchant_GetMinMonthlyFeeRemaining(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &Merchant{
+			m := &types.Merchant{
 				ID:                    tt.fields.ID,
 				Reference:             tt.fields.Reference,
 				Email:                 tt.fields.Email,
@@ -162,7 +163,7 @@ func TestMerchant_GetNextPayoutDate(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := &Merchant{
+			m := &types.Merchant{
 				ID:                    tt.fields.ID,
 				Reference:             tt.fields.Reference,
 				Email:                 tt.fields.Email,
@@ -182,7 +183,7 @@ func TestMerchant_GetNextPayoutDate(t *testing.T) {
 	}
 }
 
-func TestMerchant_calculateDailyTotalOrders(t *testing.T) {
+func TestMerchant_CalculateDailyTotalOrders(t *testing.T) {
 	type fields struct {
 		ID                    uuid.UUID
 		Reference             string
@@ -201,7 +202,7 @@ func TestMerchant_calculateDailyTotalOrders(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := Merchant{
+			m := types.Merchant{
 				ID:                    tt.fields.ID,
 				Reference:             tt.fields.Reference,
 				Email:                 tt.fields.Email,
@@ -209,7 +210,7 @@ func TestMerchant_calculateDailyTotalOrders(t *testing.T) {
 				DisbursementFrequency: tt.fields.DisbursementFrequency,
 				MinMonthlyFee:         tt.fields.MinMonthlyFee,
 			}
-			got, err := m.calculateDailyTotalOrders()
+			got, err := m.CalculateDailyTotalOrders()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("calculateDailyTotalOrders() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -221,7 +222,7 @@ func TestMerchant_calculateDailyTotalOrders(t *testing.T) {
 	}
 }
 
-func TestMerchant_calculateWeeklyTotalOrders(t *testing.T) {
+func TestMerchant_CalculateWeeklyTotalOrders(t *testing.T) {
 	type fields struct {
 		ID                    uuid.UUID
 		Reference             string
@@ -240,7 +241,7 @@ func TestMerchant_calculateWeeklyTotalOrders(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			m := Merchant{
+			m := types.Merchant{
 				ID:                    tt.fields.ID,
 				Reference:             tt.fields.Reference,
 				Email:                 tt.fields.Email,
@@ -248,7 +249,7 @@ func TestMerchant_calculateWeeklyTotalOrders(t *testing.T) {
 				DisbursementFrequency: tt.fields.DisbursementFrequency,
 				MinMonthlyFee:         tt.fields.MinMonthlyFee,
 			}
-			got, err := m.calculateWeeklyTotalOrders()
+			got, err := m.CalculateWeeklyTotalOrders()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("calculateWeeklyTotalOrders() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -512,7 +513,7 @@ func Test_getMerchant(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    Merchant
+		want    types.Merchant
 		wantErr bool
 	}{
 		// TODO: Add test cases.

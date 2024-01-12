@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/csv"
 	"github.com/google/uuid"
+	"github.com/levtk/sequra/types"
 	"io"
 	"math"
 	"os"
@@ -20,7 +21,12 @@ func parseDataFromOrders(fileName string) (Orders, error) {
 	if err != nil {
 		return o, err
 	}
-	defer ofd.Close()
+	defer func(ofd *os.File) {
+		err := ofd.Close()
+		if err != nil {
+
+		}
+	}(ofd)
 
 	r := csv.NewReader(bufio.NewReader(ofd))
 	r.Comma = ';'
@@ -64,12 +70,12 @@ func parseDataFromOrders(fileName string) (Orders, error) {
 // parseDataFromMerchants parses the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
 // which returns a map[string]types.Merchant where the key is Merchant.reference
-func parseDataFromMerchants(fileName string) (map[string]Merchant, error) {
-	var m = map[string]Merchant{}
+func parseDataFromMerchants(fileName string) (map[string]types.Merchant, error) {
+	var m = map[string]types.Merchant{}
 	mfd, err := os.Open(fileName)
 
 	if err != nil {
-		return map[string]Merchant{}, err
+		return map[string]types.Merchant{}, err
 	}
 
 	defer mfd.Close()
@@ -103,7 +109,7 @@ func parseDataFromMerchants(fileName string) (map[string]Merchant, error) {
 		}
 
 		if err == nil {
-			merchant := Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
+			merchant := types.Merchant{ID: uuid, Reference: rec[1], Email: rec[2], LiveOn: liveon, DisbursementFrequency: rec[4], MinMonthlyFee: rec[5]}
 			m[rec[1]] = merchant
 		}
 	}

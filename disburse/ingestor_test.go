@@ -2,6 +2,7 @@ package disburse
 
 import (
 	"github.com/google/uuid"
+	"github.com/levtk/sequra/types"
 	"reflect"
 	"testing"
 	"time"
@@ -54,7 +55,7 @@ func Test_importDataFromMerchants(t *testing.T) {
 
 	refs := []string{"padberg_group", "deckow_gibson", "romaguera_and_sons", "rosenbaum_parisian"}
 
-	merchants := map[string]Merchant{
+	merchants := map[string]types.Merchant{
 		"padberg_group": {
 			ID:                    uu1,
 			Reference:             "padberg_group",
@@ -91,7 +92,7 @@ func Test_importDataFromMerchants(t *testing.T) {
 	tests := []struct {
 		name     string
 		fileName string
-		want     map[string]Merchant
+		want     map[string]types.Merchant
 		wantErr  bool
 	}{
 		{name: "success", fileName: "../merchants_test.csv", want: merchants, wantErr: false},
