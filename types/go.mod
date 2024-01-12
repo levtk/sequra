@@ -1,4 +1,4 @@
-module types
+module github.com/levtk/sequra/types
 
 go 1.21.5
 
