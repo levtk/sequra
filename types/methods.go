@@ -33,6 +33,9 @@ func (m *Merchant) GetNextPayoutDate() (time.Time, error) {
 	return todayDate.AddDate(0, 0, daysUntil), nil
 }
 
+// CalculatePastPayoutDate assumes that the imported orders order date was received before 08:00 UTC and thus already recorded
+// correctly since we have no way of knowing what time the orders came in based on the data only format. If we can get the full timestamp of the order
+// receipt within our systems, we can then determine the true payout date if the system logic for time cutoff was the same when the original order was processed.
 func (m *Merchant) CalculatePastPayoutDate(t time.Time) (time.Time, error) {
 	wd := m.LiveOn.UTC().Weekday()
 	orderDate := t.UTC()
@@ -45,6 +48,10 @@ func (m *Merchant) CalculatePastPayoutDate(t time.Time) (time.Time, error) {
 		if int(wd) < int(orderDayOfWeek) {
 			days := 7 - (int(orderDayOfWeek) - int(wd))
 			return orderDate.AddDate(0, 0, days), nil
+		}
+
+		if int(wd) == int(orderDayOfWeek) {
+			return orderDate, nil
 		}
 	}
 	if m.DisbursementFrequency == DAILY {

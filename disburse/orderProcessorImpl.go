@@ -107,14 +107,21 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 
 func (op *OProcessor) ProcessBatchDistributions(disbursements []types.Disbursement) error {
 	count := 0
-	for _, v := range disbursements {
-		_, err := op.disburserRepoRepository.InsertDisbursement(v)
+	for i := 0; i < len(disbursements); i++ {
+		//if disbursements[i].DisbursementGroupID == "" {
+		//	break
+		//}
+		if disbursements[i].ID == "" {
+			continue
+		}
+		_, err := op.disburserRepoRepository.InsertDisbursement(disbursements[i])
 		if err != nil {
 			op.logger.Error("error inserting disbursement record", err.Error())
 			return err
 		}
 		count++
+
 	}
-	op.logger.Info("number of disbursement records inserted: ", count)
+	op.logger.Info("number of disbursement records inserted: ", "count", count)
 	return nil
 }

@@ -6,16 +6,19 @@ import (
 	"github.com/google/uuid"
 	"github.com/levtk/sequra/types"
 	"io"
+	"log/slog"
 	"math"
 	"os"
 	"strconv"
+	"sync"
 	"time"
 )
 
 // parseDataFromOrders parses the order data that was exported to a semicolon separated file formatted
 // per the legacy design specification prior to the new requirements documented in [link to jira story]
 func parseDataFromOrders(fileName string) (Orders, error) {
-	var o = make(Orders, 1310000)
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	o := make([]*Order, 1500000)
 	var counter = 0
 	ofd, err := os.Open(fileName)
 	if err != nil {
@@ -33,27 +36,39 @@ func parseDataFromOrders(fileName string) (Orders, error) {
 
 	for {
 		rec, err := r.Read()
+		if err != nil && err != io.EOF {
+			logger.Error("error while reading orders file", "error", err)
+		}
+
 		if err == nil {
-			line, _ := r.FieldPos(0)
+			line, _ := r.FieldPos(1)
 			if line == 1 { //skipping header line
 				continue
 			}
 
-			o[counter].ID = rec[0]
-			o[counter].MerchantReference = rec[1]
 			amount, err := strconv.ParseFloat(rec[2], 64)
 			if err != nil {
 				return o, err
 			}
 
-			o[counter].Amount = int64(math.Round(amount * 100))
+			a := int64(math.Round(amount * 100))
 			if err != nil {
 				return o, err
 			}
-			o[counter].CreatedAt, err = time.Parse("2006-01-02", rec[3])
+			createdAt, err := time.Parse("2006-01-02", rec[3])
 			if err != nil {
 				return o, err
 			}
+
+			order := Order{
+				ID:                rec[0],
+				MerchantReference: rec[1],
+				MerchantID:        uuid.UUID{},
+				Amount:            a,
+				CreatedAt:         createdAt,
+				RWMutex:           sync.RWMutex{},
+			}
+			o[counter] = &order
 			counter++
 		}
 

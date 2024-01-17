@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS DISBURSEMENT (
     disbursement_group_id TEXT,
     transaction_id TEXT, -- not implemented. when payout is confirmed by payment method/system the id for the payment transaction should be saved
     merchReference TEXT NOT NULL,
-    order_id TEXT NOT NULL,
+    order_id TEXT NOT NULL UNIQUE ,
     order_fee INT NOT NULL,
     running_total INT,
     payout_date TEXT,

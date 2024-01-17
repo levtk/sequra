@@ -73,6 +73,20 @@ type Order struct {
 	sync.RWMutex
 }
 
+func newOrder(id string, merchRef string, amount int64, createdAt string) (*Order, error) {
+	o := new(Order)
+	o.ID = id
+	o.MerchantReference = merchRef
+	o.Amount = amount
+	created, err := time.Parse(time.DateOnly, createdAt)
+	if err != nil {
+		return o, err
+	}
+
+	o.CreatedAt = created
+	return o, nil
+}
+
 type Orders []*Order
 
 func (s Orders) Len() int {
