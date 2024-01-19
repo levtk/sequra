@@ -132,15 +132,6 @@ func isBeforeCutOffTime() (bool, error) {
 	}
 }
 
-type DisbursementReport struct {
-	Year                          time.Time `json:"year,omitempty"`
-	NumberOfDisbursements         int64     `json:"number_of_disbursements,omitempty"`
-	AmountDisbursedToMerchants    int64     `json:"amount_disbursed_to_merchants,omitempty"`
-	AmountOfOrderFees             int64     `json:"amount_of_order_fees,omitempty"`
-	NumberOfMinMonthlyFeesCharged int32     `json:"number_of_min_monthly_fees_charged,omitempty"`
-	AmountOfMonthlyFeeCharged     int64     `json:"amount_of_monthly_fee_charged,omitempty"`
-}
-
 type DBOrder struct {
 	ID                string    `json:"id,omitempty"`
 	MerchantReference string    `json:"merchant_reference,omitempty"`
@@ -167,6 +158,15 @@ type Report struct {
 	Start    time.Time
 	End      time.Time
 	Data     []byte
+}
+
+type YearEndSummaryReport struct {
+	Year                int   `json:"year" DB:"year"`
+	NumOfDisbursements  int   `json:"num_of_disbursements" DB:"num_of_disbursements"`
+	AmtDisbursed        int64 `json:"amt_disbursed" DB:"amt_disbursed"`
+	AmtCommissions      int64 `json:"amt_commissions" DB:"amt_commissions"`
+	NumberOfMonthlyFees int   `json:"number_of_monthly_fees" DB:"number_of_monthly_fees"`
+	AmountOfMonthlyFees int64 `json:"amount_of_monthly_fees" DB:"amount_of_monthly_fees"`
 }
 
 type DBReport struct {
@@ -230,7 +230,7 @@ func (o *Order) ProcessOrder() error {
 }
 
 type Disbursement struct {
-	ID                  string `json:"ID" DB:"ID"`
+	ID                  string `json:"RecordUUID" DB:"RecordUUID"`
 	DisbursementGroupID string `json:"DisbursementGroupID" DB:"disbursement_group_id"`
 	MerchReference      string `json:"MerchReference" DB:"merchReference"`
 	OrderID             string `json:"OrderID" DB:"order_id"`

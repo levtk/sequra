@@ -94,14 +94,14 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 	}
 
 	return types.Disbursement{
-		ID:                  disbursementID,
-		DisbursementGroupID: disbursementGroupID,
-		MerchReference:      merch.Reference,
-		OrderID:             o.ID,
-		OrderFee:            orderFee,
-		RunningTotal:        0,
-		PayoutDate:          payoutDate,
-		IsPaidOut:           false,
+		RecordUUID:           disbursementID,
+		DisbursementGroupID:  disbursementGroupID,
+		MerchReference:       merch.Reference,
+		OrderID:              o.ID,
+		OrderFee:             orderFee,
+		OrderFeeRunningTotal: 0,
+		PayoutDate:           payoutDate,
+		IsPaidOut:            false,
 	}, err
 }
 
@@ -111,7 +111,7 @@ func (op *OProcessor) ProcessBatchDistributions(disbursements []types.Disburseme
 		//if disbursements[i].DisbursementGroupID == "" {
 		//	break
 		//}
-		if disbursements[i].ID == "" {
+		if disbursements[i].RecordUUID == "" {
 			continue
 		}
 		_, err := op.disburserRepoRepository.InsertDisbursement(disbursements[i])

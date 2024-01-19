@@ -23,14 +23,24 @@ type Merchant struct {
 }
 
 type Disbursement struct {
-	ID                  string `json:"ID" DB:"ID"`
-	DisbursementGroupID string `json:"DisbursementGroupID" DB:"disbursement_group_id"`
-	TransactionID       string `json:"TransactionID" DB:"transaction_id"`
-	MerchReference      string `json:"MerchReference" DB:"merchReference"`
-	OrderID             string `json:"OrderID" DB:"order_id"`
-	OrderFee            int64  `json:"OrderFee" DB:"order_fee"`
-	RunningTotal        int64  `json:"RunningTotal" DB:"running_total"`
-	PayoutDate          string `json:"PayoutDate" DB:"payout_date"`
-	PayoutTotal         int64  `json:"PayoutTotal" DB:"payout_total"`
-	IsPaidOut           bool   `json:"IsPaidOut" DB:"is_paid_out"`
+	RecordUUID           string `json:"RecordUUID" DB:"record_uuid"`
+	DisbursementGroupID  string `json:"DisbursementGroupID" DB:"disbursement_group_id"`
+	TransactionID        string `json:"TransactionID" DB:"transaction_id"`
+	MerchReference       string `json:"MerchReference" DB:"merchReference"`
+	OrderID              string `json:"OrderID" DB:"order_id"`
+	OrderFee             int64  `json:"OrderFee" DB:"order_fee"`
+	OrderFeeRunningTotal int64  `json:"OrderFeeRunningTotal" DB:"order_fee_running_total"`
+	PayoutDate           string `json:"PayoutDate" DB:"payout_date"`
+	PayoutRunningTotal   int64  `json:"PayoutRunningTotal" DB:"payout_running_total"`
+	PayoutTotal          int64  `json:"PayoutTotal" DB:"payout_total"`
+	IsPaidOut            bool   `json:"IsPaidOut" DB:"is_paid_out"`
+}
+
+type DisbursementReport struct {
+	Year                          time.Time `json:"year,omitempty"`
+	NumberOfDisbursements         int64     `json:"number_of_disbursements,omitempty"`
+	AmountDisbursedToMerchants    int64     `json:"amount_disbursed_to_merchants,omitempty"`
+	AmountOfOrderFees             int64     `json:"amount_of_order_fees,omitempty"`
+	NumberOfMinMonthlyFeesCharged int32     `json:"number_of_min_monthly_fees_charged,omitempty"`
+	AmountOfMonthlyFeeCharged     int64     `json:"amount_of_monthly_fee_charged,omitempty"`
 }

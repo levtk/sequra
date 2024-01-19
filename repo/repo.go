@@ -24,10 +24,14 @@ const (
 
 	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, amount, created_at) VALUES(?,?,?,?);`
 
-	insertDisbursement = `INSERT INTO DISBURSEMENT(id, disbursement_group_id, merchReference, order_id, order_fee, running_total, payout_date, is_paid_out)
-	VALUES (?,?,?,?,?,?,?,?);`
+	insertDisbursement = `INSERT INTO DISBURSEMENT(record_uuid, disbursement_group_id, merchReference, order_id, order_fee, order_fee_running_total, payout_date, payout_running_total, payout_total, is_paid_out)
+	VALUES (?,?,?,?,?,?,?,?,?,?);`
 
 	getDisbursementGroupID = `SELECT (disbursement_group_id) FROM DISBURSEMENT WHERE payout_date=:today AND merchReference=:merchRef`
+
+	getNumberOfDisbursementsByYear = `SELECT COUNT() FROM DISBURSEMENT WHERE is_paid_out=1 AND payout_date LIKE '%' + :year + '%'`
+
+	getTotalCommissionAndTotalPayoutByYear = `SELECT  count(), SUM(DISBURSEMENT.payout_total), sum(DISBURSEMENT.order_fee_running_total) from DISBURSEMENT WHERE is_paid_out = 1 AND payout_date LIKE '%' + :year + '%'`
 )
 
 type DisburserRepoRepository interface {
@@ -40,59 +44,24 @@ type DisburserRepoRepository interface {
 	InsertOrder(order types.Order) error
 	InsertDisbursement(disbursement types.Disbursement) (lastInsertID int64, err error)
 	InsertMerchant(m types.Merchant) error
+	GetNumberOfDisbursementsByYear(yyyy string) (int64, error)
+	GetTotalCommissionsAndPayoutByYear(yyyy string) (types.DisbursementReport, error)
 }
 
 type DisburserRepo struct {
-	db                             *sql.DB
-	ctx                            context.Context
-	logger                         *slog.Logger
-	insertOrder                    *sql.Stmt
-	insertDisbursement             *sql.Stmt
-	insertMerchant                 *sql.Stmt
-	getOrdersByMerchantReferenceID *sql.Stmt
-	getMerchantByRefID             *sql.Stmt
-	getDisbursementGroupID         *sql.Stmt
-	createDisbursementsTable       *sql.Stmt
-	createMerchantsTable           *sql.Stmt
-}
-
-type DBDisbursement struct {
-	ID                  string `DB:"ID"`
-	DisbursementGroupID string `DB:"disbursement_group_id"`
-	MerchReference      string `DB:"merchReference"`
-	OrderID             string `DB:"order_id"`
-	OrderFee            int64  `DB:"order_fee"`
-	RunningTotal        int64  `DB:"running_total"`
-	PayoutDate          string `DB:"payout_date"`
-	IsPaidOut           bool   `DB:"is_paid_out"`
-}
-
-type DBOrder struct {
-	ID                string    `json:"id,omitempty"`
-	MerchantReference string    `json:"merchant_reference,omitempty"`
-	MerchantID        uuid.UUID `json:"merchant_id,omitempty"`
-	Amount            int64     `json:"amount,omitempty"`
-	CreatedAt         time.Time `json:"created_at,omitempty"`
-}
-
-type DBMerchant struct {
-	ID                    uuid.UUID `json:"id,omitempty"`
-	Reference             string    `json:"reference,omitempty"`
-	Email                 string    `json:"email,omitempty"`
-	LiveOn                time.Time `json:"live_on,omitempty"`
-	DisbursementFrequency string    `json:"disbursement_frequency,omitempty"`
-	MinMonthlyFee         string    `json:"minimum_monthly_fee,omitempty"`
-}
-
-type DBReport struct {
-	logger   *slog.Logger
-	ctx      context.Context
-	Name     string
-	Merchant DBMerchant
-	repo     DisburserRepoRepository
-	Start    time.Time
-	End      time.Time
-	data     []byte
+	db                                     *sql.DB
+	ctx                                    context.Context
+	logger                                 *slog.Logger
+	insertOrder                            *sql.Stmt
+	insertDisbursement                     *sql.Stmt
+	insertMerchant                         *sql.Stmt
+	getOrdersByMerchantReferenceID         *sql.Stmt
+	getMerchantByRefID                     *sql.Stmt
+	getDisbursementGroupID                 *sql.Stmt
+	getNumberOfDisbursementsByYear         *sql.Stmt
+	getTotalCommissionAndTotalPayoutByYear *sql.Stmt
+	createDisbursementsTable               *sql.Stmt
+	createMerchantsTable                   *sql.Stmt
 }
 
 func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
@@ -126,16 +95,28 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		return &DisburserRepo{}, err
 	}
 
+	getNumDisbursementsByYear, err := db.Prepare(getNumberOfDisbursementsByYear)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
+	getTotalCommAndPayoutByYear, err := db.Prepare(getTotalCommissionAndTotalPayoutByYear)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
 	return &DisburserRepo{
-		db:                             db,
-		ctx:                            ctx,
-		logger:                         l,
-		insertOrder:                    insOrderStmt,
-		insertDisbursement:             insDisbursementStmt,
-		insertMerchant:                 insertMerchantStmt,
-		getOrdersByMerchantReferenceID: getOrdersByMerchRefID,
-		getMerchantByRefID:             getMerchantByRefID,
-		getDisbursementGroupID:         getDisburseGroupID,
+		db:                                     db,
+		ctx:                                    ctx,
+		logger:                                 l,
+		insertOrder:                            insOrderStmt,
+		insertDisbursement:                     insDisbursementStmt,
+		insertMerchant:                         insertMerchantStmt,
+		getOrdersByMerchantReferenceID:         getOrdersByMerchRefID,
+		getMerchantByRefID:                     getMerchantByRefID,
+		getDisbursementGroupID:                 getDisburseGroupID,
+		getNumberOfDisbursementsByYear:         getNumDisbursementsByYear,
+		getTotalCommissionAndTotalPayoutByYear: getTotalCommAndPayoutByYear,
 	}, nil
 }
 
@@ -203,6 +184,28 @@ func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today strin
 	return refId, nil
 }
 
+// GetNumberOfDisbursementsByYear takes the year format of YYYY as a string and returns the number of disbursements for that year or an error.
+func (dr *DisburserRepo) GetNumberOfDisbursementsByYear(yyyy string) (int64, error) {
+	var n int64
+	row := dr.getNumberOfDisbursementsByYear.QueryRow(yyyy)
+	err := row.Scan(n)
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
+}
+
+func (dr *DisburserRepo) GetTotalCommissionsAndPayoutByYear(yyyy string) (types.DisbursementReport, error) {
+	var dispReport types.DisbursementReport
+	row := dr.getTotalCommissionAndTotalPayoutByYear.QueryRow(yyyy)
+	err := row.Scan(dispReport)
+	if err != nil {
+		return dispReport, err
+	}
+
+	return dispReport, nil
+}
+
 func (dr *DisburserRepo) InsertOrder(o types.Order) error {
 	_, err := dr.insertOrder.Exec(o.ID, o.MerchantReference, o.Amount, o.CreatedAt)
 	if err != nil {
@@ -212,7 +215,7 @@ func (dr *DisburserRepo) InsertOrder(o types.Order) error {
 }
 
 func (dr *DisburserRepo) InsertDisbursement(d types.Disbursement) (lastInsertID int64, err error) {
-	res, err := dr.insertDisbursement.Exec(d.ID, d.DisbursementGroupID, d.MerchReference, d.OrderID, d.OrderFee, d.RunningTotal, d.PayoutDate, d.IsPaidOut)
+	res, err := dr.insertDisbursement.Exec(d.RecordUUID, d.DisbursementGroupID, d.MerchReference, d.OrderID, d.OrderFee, d.OrderFeeRunningTotal, d.PayoutDate, d.PayoutRunningTotal, d.PayoutTotal, d.IsPaidOut)
 	if err != nil {
 		return 0, err
 	}
