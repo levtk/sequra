@@ -32,6 +32,9 @@ const (
 	getNumberOfDisbursementsByYear = `SELECT COUNT() FROM DISBURSEMENT WHERE is_paid_out=1 AND payout_date LIKE '%' + :year + '%'`
 
 	getTotalCommissionAndTotalPayoutByYear = `SELECT  count(), SUM(DISBURSEMENT.payout_total), sum(DISBURSEMENT.order_fee_running_total) from DISBURSEMENT WHERE is_paid_out = 1 AND payout_date LIKE '%' + :year + '%'`
+
+	insertMonthly = `INSERT INTO MONTHLY(id, merchant_id, merchant_reference, monthly_fee_date, did_pay_fee, 
+                    monthly_fee, total_order_amt, order_fee_total, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?)`
 )
 
 type DisburserRepoRepository interface {
@@ -40,12 +43,13 @@ type DisburserRepoRepository interface {
 	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (reports.Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (types.Merchant, error)
 	GetMerchantByReferenceID(merchantReferenceID string) (types.Merchant, error)
-	GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error)
+	GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (string, error)
 	InsertOrder(order types.Order) error
 	InsertDisbursement(disbursement types.Disbursement) (lastInsertID int64, err error)
 	InsertMerchant(m types.Merchant) error
 	GetNumberOfDisbursementsByYear(yyyy string) (int64, error)
 	GetTotalCommissionsAndPayoutByYear(yyyy string) (types.DisbursementReport, error)
+	InsertMonthly(m types.Monthly) error
 }
 
 type DisburserRepo struct {
@@ -62,6 +66,7 @@ type DisburserRepo struct {
 	getTotalCommissionAndTotalPayoutByYear *sql.Stmt
 	createDisbursementsTable               *sql.Stmt
 	createMerchantsTable                   *sql.Stmt
+	insMonthly                             *sql.Stmt
 }
 
 func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
@@ -105,6 +110,11 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		return &DisburserRepo{}, err
 	}
 
+	insertMonthlyStmt, err := db.Prepare(insertMonthly)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
 	return &DisburserRepo{
 		db:                                     db,
 		ctx:                                    ctx,
@@ -117,6 +127,7 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		getDisbursementGroupID:                 getDisburseGroupID,
 		getNumberOfDisbursementsByYear:         getNumDisbursementsByYear,
 		getTotalCommissionAndTotalPayoutByYear: getTotalCommAndPayoutByYear,
+		insMonthly:                             insertMonthlyStmt,
 	}, nil
 }
 
@@ -168,9 +179,10 @@ func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (t
 }
 
 // GetDisbursementGroupID returns the row with groupID if exists or err which should be ErrNoRows which tells us we need to create the groupID
-func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today string, merchRef string) (string, error) {
+func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (string, error) {
 	var refId string
-	row := dr.getDisbursementGroupID.QueryRowContext(ctx, today, merchRef)
+	t := today.Format(time.DateOnly)
+	row := dr.getDisbursementGroupID.QueryRowContext(ctx, t, merchRef)
 	err := row.Err()
 	if err != nil {
 		return "", err
@@ -230,6 +242,19 @@ func (dr *DisburserRepo) InsertDisbursement(d types.Disbursement) (lastInsertID 
 func (dr *DisburserRepo) InsertMerchant(m types.Merchant) error {
 	_, err := dr.insertMerchant.Exec(m.ID, m.Reference, m.Email, m.LiveOn, m.DisbursementFrequency, m.MinMonthlyFee)
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (dr *DisburserRepo) InsertMonthly(m types.Monthly) error {
+	id := m.ID.String()
+	merchID := m.MerchantID.String()
+	monDate := m.MonthlyFeeDate.String()
+	createdAt := m.CreatedAt.String()
+	_, err := dr.insMonthly.Exec(id, merchID, m.MerchantReference, monDate, m.DidPayFee, m.MonthlyFee, m.TotalOrderAmt, m.OrderFeeTotal, createdAt, time.Now().UTC().Format(time.DateTime))
+	if err != nil {
+		dr.logger.Info("failed to insert", "monthly", m)
 		return err
 	}
 	return nil

@@ -23,15 +23,16 @@ func NewImport(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepo
 	}
 }
 
-func (i *Import) ImportOrders() ([]types.Disbursement, map[string]types.Merchant, error) {
+func (i *Import) ImportOrders() ([]types.Disbursement, map[string]types.Merchant, []types.Monthly, error) {
 	var orders Orders
 	var disbursements []types.Disbursement
 	var merchants map[string]types.Merchant
+	var monthly []types.Monthly
 
 	orders, err := parseDataFromOrders(i.OrdersFileName)
 	if err != nil {
 		i.Logger.Error("failed to parse data from orders", "error", err.Error())
-		return disbursements, merchants, err
+		return disbursements, merchants, monthly, err
 	}
 
 	sortOrdersByMerchant(orders)
@@ -40,11 +41,11 @@ func (i *Import) ImportOrders() ([]types.Disbursement, map[string]types.Merchant
 	merchants, err = parseDataFromMerchants(i.MerchantsFileName)
 	if err != nil {
 		i.Logger.Error("failed to parse data from merchants", "error", err.Error())
-		return disbursements, merchants, err
+		return disbursements, merchants, monthly, err
 	}
 
-	disbursements, err = buildDisbursementRecordsFromImport(orders, merchants)
-	return disbursements, merchants, err
+	disbursements, monthly, err = buildDisbursementRecordsFromImport(orders, merchants)
+	return disbursements, merchants, monthly, err
 }
 
 func sortOrdersByMerchant(orders Orders) {
@@ -61,26 +62,25 @@ func sortOrdersByMerchant(orders Orders) {
 
 // TODO add monthly fees charged logic and to disbursement or another table.
 // calculatePayout takes a sorted list of type Orders and calculates their distribution payouts and creates the distribution id.
-func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) ([]types.Disbursement, error) {
+func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) ([]types.Disbursement, []types.Monthly, error) {
 	var merchant types.Merchant
 	disbursements := make([]types.Disbursement, 1500000)
+	monthly := make([]types.Monthly, 2000000)
+	monthlyCount := 0
 	var disbursementGroupID, frequency string
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 
 	for i := 0; i < len(o); i++ {
 		if o[i] != nil {
-
 			merchant = m[o[i].MerchantReference]
 			frequency = merchant.DisbursementFrequency
-			if o[i] == nil {
-				return disbursements, nil
-			} //Loop through all orders
+
 			if i == 0 { //For the first order, create the disbursement for index 0
 				disbursements[i].RecordUUID = uuid.NewString()
 				disbursementGroupID = uuid.NewString()
 				orderFee, err := o[i].CalculateOrderFee()
 				if err != nil {
-					return disbursements, err
+					return disbursements, monthly, err
 				}
 
 				disbursements[i].OrderFee = orderFee
@@ -91,24 +91,21 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) (
 				disbursements[i].OrderID = o[i].ID
 
 				if frequency == types.DAILY {
-					createdAt := o[i].CreatedAt.Format(time.DateOnly)
-					disbursements[i].PayoutDate = createdAt
+					disbursements[i].PayoutDate = o[i].CreatedAt
 				}
 
 				if m[o[i].MerchantReference].DisbursementFrequency == types.WEEKLY {
-					payoutDate, err := merchant.CalculatePastPayoutDate(o[i].CreatedAt)
+					disbursements[i].PayoutDate, err = merchant.CalculatePastPayoutDate(o[i].CreatedAt)
 					if err != nil {
-						return disbursements, err
+						return disbursements, monthly, err
 					}
-
-					disbursements[i].PayoutDate = payoutDate.Format(time.DateOnly)
 				}
 				continue
 			}
-			if i > 0 && o[i] != nil {
+			if i > 0 && o[i] != nil { //after first disbursement record is created we can calculate values based on the past records
 				newPayoutPeriod, err := isNewPayoutPeriod(o[i-1], o[i], m[o[i].MerchantReference]) //checking to see if this is a new payout period
 				if err != nil {
-					return nil, err
+					return nil, monthly, err
 				}
 
 				if o[i] != nil {
@@ -118,7 +115,7 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) (
 						if !newPayoutPeriod {
 							orderFee, err := o[i].CalculateOrderFee()
 							if err != nil {
-								return disbursements, err
+								return disbursements, monthly, err
 							}
 							disbursements[i].RecordUUID = uuid.NewString()
 							disbursements[i].MerchReference = o[i].MerchantReference
@@ -129,38 +126,65 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) (
 
 							disbursements[i].OrderID = o[i].ID
 							disbursements[i].OrderFee = orderFee
-							disbursements[i].PayoutDate = o[i].CreatedAt.Format(time.DateOnly)
+							disbursements[i].PayoutDate = o[i].CreatedAt
 							continue
-						}
-						if newPayoutPeriod {
+
+						} else {
 							orderFee, err := o[i].CalculateOrderFee()
 							if err != nil {
-								return disbursements, err
+								return disbursements, monthly, err
 							}
+
 							disbursements[i].RecordUUID = uuid.NewString()
-							disbursements[i-1].PayoutTotal = disbursements[i-1].OrderFeeRunningTotal //The last running total record within the frequency period becomes the PayoutTotal
-							disbursements[i].DisbursementGroupID = uuid.NewString()                  //create new disbursement group RecordUUID
-							disbursements[i].MerchReference = o[i].MerchantReference                 //set the merchant var to the new value
+							disbursements[i-1].PayoutTotal = disbursements[i-1].PayoutRunningTotal //The last running total record within the frequency period becomes the PayoutTotal
+							disbursements[i].DisbursementGroupID = uuid.NewString()                //create new disbursement group RecordUUID
+							disbursements[i].MerchReference = o[i].MerchantReference               //set the merchant var to the new value
 							disbursements[i].OrderFeeRunningTotal = orderFee
 							disbursements[i].PayoutRunningTotal = o[i].Amount - orderFee
 							disbursements[i].OrderID = o[i].ID
 							disbursements[i].OrderFee = orderFee
-							disbursements[i].PayoutDate = o[i].CreatedAt.Format(time.DateOnly)
+							disbursements[i].PayoutDate = o[i].CreatedAt
 
 							disbursements[i-1].PayoutTotal = disbursements[i-1].PayoutRunningTotal
 							disbursements[i-1].IsPaidOut = true
+
+							if types.IsNewMonth(disbursements[i-1].PayoutDate, disbursements[i].PayoutDate) {
+								monthlyFee, err := types.StrToInt64(m[o[i].MerchantReference].MinMonthlyFee)
+								if err != nil {
+									logger.Error("failed to parse monthly fee to int64", "error", err)
+								}
+
+								var didPayFee = 1
+								if (disbursements[i-1].OrderFeeRunningTotal-monthlyFee > 0) || m[o[i].MerchantReference].MinMonthlyFee == "0.0" {
+									didPayFee = 0
+								}
+
+								monthly[monthlyCount] = types.Monthly{
+									ID:                uuid.New(),
+									MerchantReference: m[o[i].MerchantReference].Reference,
+									MerchantID:        merchant.ID,
+									MonthlyFeeDate:    disbursements[i].PayoutDate,
+									DidPayFee:         didPayFee,
+									MonthlyFee:        monthlyFee,
+									TotalOrderAmt:     disbursements[i-1].PayoutRunningTotal,
+									OrderFeeTotal:     disbursements[i-1].OrderFeeRunningTotal,
+									CreatedAt:         disbursements[i].PayoutDate,
+									UpdatedAt:         time.Now().UTC(),
+								}
+								monthlyCount++
+							}
 							continue
 						}
 					case types.WEEKLY:
 						orderFee, err := o[i].CalculateOrderFee()
 						if err != nil {
-							return disbursements, err
+							return disbursements, monthly, err
 						}
 
 						if !newPayoutPeriod {
 							previousRecordPayoutDate, err := merchant.CalculatePastPayoutDate(o[i-1].CreatedAt)
 							if err != nil {
-								return disbursements, err
+								return disbursements, monthly, err
 							}
 
 							disbursements[i].RecordUUID = uuid.NewString()
@@ -170,12 +194,12 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) (
 							disbursements[i].DisbursementGroupID = disbursements[i-1].DisbursementGroupID
 							disbursements[i].OrderID = o[i].ID
 							disbursements[i].OrderFee = orderFee
-							disbursements[i].PayoutDate = previousRecordPayoutDate.UTC().Format(time.DateOnly)
+							disbursements[i].PayoutDate = previousRecordPayoutDate.UTC()
 							continue
 						} else {
 							currentRecordsPayoutDate, err := merchant.CalculatePastPayoutDate(o[i].CreatedAt)
 							if err != nil {
-								return disbursements, err
+								return disbursements, monthly, err
 							}
 
 							disbursements[i].RecordUUID = uuid.NewString()
@@ -185,10 +209,36 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) (
 							disbursements[i].DisbursementGroupID = uuid.NewString()
 							disbursements[i].OrderID = o[i].ID
 							disbursements[i].OrderFee = orderFee
-							disbursements[i].PayoutDate = currentRecordsPayoutDate.UTC().Format(time.DateOnly)
+							disbursements[i].PayoutDate = currentRecordsPayoutDate.UTC()
 
 							disbursements[i-1].PayoutTotal = disbursements[i-1].PayoutRunningTotal
 							disbursements[i-1].IsPaidOut = true
+
+							if types.IsNewMonth(disbursements[i-1].PayoutDate, disbursements[i].PayoutDate) {
+								monthlyFee, err := types.StrToInt64(m[o[i].MerchantReference].MinMonthlyFee)
+								if err != nil {
+									logger.Error("failed to parse monthly fee to int64", "error", err)
+								}
+
+								didPayFee := 1
+								if (disbursements[i-1].OrderFeeRunningTotal-monthlyFee > 0) || m[o[i].MerchantReference].MinMonthlyFee == "0.0" {
+									didPayFee = 0
+								}
+
+								monthly[monthlyCount] = types.Monthly{
+									ID:                uuid.New(),
+									MerchantReference: m[o[i].MerchantReference].Reference,
+									MerchantID:        merchant.ID,
+									MonthlyFeeDate:    disbursements[i].PayoutDate,
+									DidPayFee:         didPayFee,
+									MonthlyFee:        monthlyFee,
+									TotalOrderAmt:     disbursements[i-1].PayoutRunningTotal,
+									OrderFeeTotal:     disbursements[i-1].OrderFeeRunningTotal,
+									CreatedAt:         disbursements[i].PayoutDate,
+									UpdatedAt:         time.Now().UTC(),
+								}
+								monthlyCount++
+							}
 							continue
 						}
 					default:
@@ -199,7 +249,7 @@ func buildDisbursementRecordsFromImport(o Orders, m map[string]types.Merchant) (
 			}
 		}
 	}
-	return disbursements, nil
+	return disbursements, monthly, nil
 }
 
 func isNewPayoutPeriod(o1 *Order, o2 *Order, m types.Merchant) (bool, error) {
@@ -277,7 +327,7 @@ func buildWeeklyRecord(o Orders, m map[string]types.Merchant, disbursements []ty
 			if err != nil {
 				return disbursements, err
 			}
-			disbursements[i].PayoutDate = pastPayoutDate.Format(time.DateOnly)
+			disbursements[i].PayoutDate = pastPayoutDate
 			return disbursements, nil
 		}
 	}

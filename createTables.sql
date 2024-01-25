@@ -27,3 +27,16 @@ CREATE TABLE IF NOT EXISTS MERCHANTS (
     live_on TEXT,
     disbursement_frequency TEXT,
     minimum_monthly_fee TEXT);
+
+CREATE TABLE IF NOT EXISTS MONTHLY (
+    id TEXT primary key,
+    merchant_id TEXT,
+    merchant_reference TEXT,
+    monthly_fee_date date,
+    did_pay_fee INT,
+    monthly_fee INT,
+    total_order_amt INT,
+    order_fee_total INT,
+    createdAt datetime,
+    updatedAt datetime
+);

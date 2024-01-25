@@ -16,11 +16,12 @@ type Disburser interface {
 }
 
 type Importer interface {
-	ImportOrders() ([]types.Disbursement, map[string]types.Merchant, error)
+	ImportOrders() ([]types.Disbursement, map[string]types.Merchant, []types.Monthly, error)
 }
 type OrderProcessor interface {
 	ProcessOrder(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, o *Order) error
 	ProcessBatchDistributions([]types.Disbursement) error
+	ProcessBatchMonthly([]types.Monthly) error
 }
 
 type Seller interface {
@@ -34,4 +35,5 @@ type Reporter interface {
 	DisbursementsByYear(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository) (Report, error)
 	DisbursementsByRange(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, start time.Time, end time.Time) (Report, error)
 	MerchantDisbursements(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository, merchantUUID uuid.UUID, start time.Time, end time.Time) (Report, error)
+	NumberMonthlyPaymentsByYear(logger *slog.Logger, YYYY string, disbursements []types.Disbursement) (Report, error)
 }

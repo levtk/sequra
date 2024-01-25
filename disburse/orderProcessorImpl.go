@@ -60,7 +60,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch types.Merchant, orderFee int64) (types.Disbursement, error) {
 	disbursementID := uuid.NewString()
 	var pd time.Time
-	var payoutDate string
+	var payoutDate time.Time
 	disbursementFreq := merch.DisbursementFrequency
 	switch disbursementFreq {
 	case types.DAILY:
@@ -71,14 +71,14 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 		if !ok && err == nil {
 			pd = pd.AddDate(0, 0, 1)
 		}
-		payoutDate = pd.Format(time.DateOnly)
+		payoutDate = pd
 
 	case types.WEEKLY:
 		pd, err := merch.GetNextPayoutDate()
 		if err != nil {
 			return types.Disbursement{}, err
 		}
-		payoutDate = pd.Format(time.DateOnly)
+		payoutDate = pd
 
 	default:
 		return types.Disbursement{}, errors.New("merchants disbursement frequency is not supported")
@@ -106,22 +106,30 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 }
 
 func (op *OProcessor) ProcessBatchDistributions(disbursements []types.Disbursement) error {
-	count := 0
 	for i := 0; i < len(disbursements); i++ {
-		//if disbursements[i].DisbursementGroupID == "" {
-		//	break
-		//}
 		if disbursements[i].RecordUUID == "" {
 			continue
 		}
+
 		_, err := op.disburserRepoRepository.InsertDisbursement(disbursements[i])
 		if err != nil {
 			op.logger.Error("error inserting disbursement record", err.Error())
 			return err
 		}
-		count++
-
 	}
-	op.logger.Info("number of disbursement records inserted: ", "count", count)
+	return nil
+}
+
+func (op *OProcessor) ProcessBatchMonthly(monthly []types.Monthly) error {
+	for i := 0; i < len(monthly); i++ {
+		if monthly[i].MerchantReference == "" {
+			continue
+		}
+
+		err := op.disburserRepoRepository.InsertMonthly(monthly[i])
+		if err != nil {
+			op.logger.Error("failed to insert monthly record", "error", err)
+		}
+	}
 	return nil
 }
