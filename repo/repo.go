@@ -18,23 +18,26 @@ const (
 
 	getOrdersByMerchantUUID = `SELECT * FROM ORDERS WHERE id=:merchantUUID;`
 
-	getOrdersByMerchantReferenceID = `SELECT * FROM ORDERS WHERE merchant_reference=:merchRef`
+	getOrdersByMerchantReferenceID = `SELECT * FROM ORDERS WHERE merchant_reference=:merchRef;`
 
-	getMerchantByReferenceID = `SELECT * FROM MERCHANTS WHERE reference=:referenceID`
+	getMerchantByReferenceID = `SELECT * FROM MERCHANTS WHERE reference=:referenceID;`
 
 	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, amount, created_at) VALUES(?,?,?,?);`
 
 	insertDisbursement = `INSERT INTO DISBURSEMENT(record_uuid, disbursement_group_id, merchReference, order_id, order_fee, order_fee_running_total, payout_date, payout_running_total, payout_total, is_paid_out)
 	VALUES (?,?,?,?,?,?,?,?,?,?);`
 
-	getDisbursementGroupID = `SELECT (disbursement_group_id) FROM DISBURSEMENT WHERE payout_date=:today AND merchReference=:merchRef`
+	getDisbursementGroupID = `SELECT (disbursement_group_id) FROM DISBURSEMENT WHERE payout_date=:today AND merchReference=:merchRef;`
 
-	getNumberOfDisbursementsByYear = `SELECT COUNT() FROM DISBURSEMENT WHERE is_paid_out=1 AND payout_date LIKE '%' + :year + '%'`
+	getNumberOfDisbursementsByYear = `SELECT COUNT() FROM DISBURSEMENT WHERE is_paid_out=1 AND payout_date LIKE :YYYY;`
 
-	getTotalCommissionAndTotalPayoutByYear = `SELECT  count(), SUM(DISBURSEMENT.payout_total), sum(DISBURSEMENT.order_fee_running_total) from DISBURSEMENT WHERE is_paid_out = 1 AND payout_date LIKE '%' + :year + '%'`
+	getTotalCommissionAndTotalPayoutByYear = `SELECT  COUNT() AS number_of_disbursements, SUM(DISBURSEMENT.payout_total) AS amt_disbursed_to_merchants, SUM(DISBURSEMENT.order_fee_running_total) AS amount_of_order_fees FROM DISBURSEMENT WHERE is_paid_out = 1 AND payout_date LIKE @YYYY || '%';`
 
 	insertMonthly = `INSERT INTO MONTHLY(id, merchant_id, merchant_reference, monthly_fee_date, did_pay_fee, 
-                    monthly_fee, total_order_amt, order_fee_total, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?)`
+                    monthly_fee, total_order_amt, order_fee_total, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?);`
+
+	getMonthlyFeeTotalsByYear = `SELECT COUNT(*) as count, SUM(monthly_fee) AS total_monthly_fees, SUM(order_fee_total) AS total_order_fees, SUM(amt_monthly_fee_paid) AS total_monthly_fees_paid FROM MONTHLY
+										WHERE createdAt LIKE @YYYY || '%'  AND did_pay_fee = 1;`
 )
 
 type DisburserRepoRepository interface {
@@ -50,6 +53,7 @@ type DisburserRepoRepository interface {
 	GetNumberOfDisbursementsByYear(yyyy string) (int64, error)
 	GetTotalCommissionsAndPayoutByYear(yyyy string) (types.DisbursementReport, error)
 	InsertMonthly(m types.Monthly) error
+	GetMonthlyFeesPaidByYear(YYYY string) (count, totalMonthlyFees, totalOrderFees sql.NullInt64, err error)
 }
 
 type DisburserRepo struct {
@@ -67,6 +71,7 @@ type DisburserRepo struct {
 	createDisbursementsTable               *sql.Stmt
 	createMerchantsTable                   *sql.Stmt
 	insMonthly                             *sql.Stmt
+	getMonthlyFeesPaidByYear               *sql.Stmt
 }
 
 func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
@@ -115,6 +120,11 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		return &DisburserRepo{}, err
 	}
 
+	getMonthlyFeesPaidByYearStmt, err := db.Prepare(getMonthlyFeeTotalsByYear)
+	if err != nil {
+		return &DisburserRepo{}, err
+	}
+
 	return &DisburserRepo{
 		db:                                     db,
 		ctx:                                    ctx,
@@ -128,6 +138,7 @@ func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*Disburs
 		getNumberOfDisbursementsByYear:         getNumDisbursementsByYear,
 		getTotalCommissionAndTotalPayoutByYear: getTotalCommAndPayoutByYear,
 		insMonthly:                             insertMonthlyStmt,
+		getMonthlyFeesPaidByYear:               getMonthlyFeesPaidByYearStmt,
 	}, nil
 }
 
@@ -208,14 +219,14 @@ func (dr *DisburserRepo) GetNumberOfDisbursementsByYear(yyyy string) (int64, err
 }
 
 func (dr *DisburserRepo) GetTotalCommissionsAndPayoutByYear(yyyy string) (types.DisbursementReport, error) {
-	var dispReport types.DisbursementReport
+	disrpt := types.DisbursementReport{}
 	row := dr.getTotalCommissionAndTotalPayoutByYear.QueryRow(yyyy)
-	err := row.Scan(dispReport)
+	err := row.Scan(&disrpt.NumberOfDisbursements, &disrpt.AmountDisbursedToMerchants, &disrpt.AmountOfOrderFees)
 	if err != nil {
-		return dispReport, err
+		return disrpt, err
 	}
 
-	return dispReport, nil
+	return disrpt, nil
 }
 
 func (dr *DisburserRepo) InsertOrder(o types.Order) error {
@@ -258,4 +269,20 @@ func (dr *DisburserRepo) InsertMonthly(m types.Monthly) error {
 		return err
 	}
 	return nil
+}
+
+func (dr *DisburserRepo) GetMonthlyFeesPaidByYear(YYYY string) (count, totalMonthlyFees, totalOrderFees sql.NullInt64, err error) {
+	dest := &struct {
+		count                sql.NullInt64
+		totalMonthlyFees     sql.NullInt64
+		totalOrderFees       sql.NullInt64
+		totalMonthlyFeesPaid sql.NullInt64
+	}{}
+	row := dr.getMonthlyFeesPaidByYear.QueryRow(YYYY)
+	err = row.Scan(&dest.count, &dest.totalMonthlyFees, &dest.totalOrderFees, &dest.totalMonthlyFeesPaid)
+	if err != nil {
+		dr.logger.Error("failed to get monthly fees paid by year")
+		return sql.NullInt64{}, sql.NullInt64{}, sql.NullInt64{}, err
+	}
+	return dest.count, dest.totalMonthlyFees, dest.totalOrderFees, nil
 }

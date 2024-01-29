@@ -6,6 +6,7 @@ import (
 	d "github.com/levtk/sequra/disburse"
 	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
+	"net/http"
 	"os"
 )
 
@@ -31,32 +32,18 @@ func main() {
 		logger.Error("failed to connect to db", err.Error())
 	}
 
-	disburserService, err := d.NewDisburserService(logger, ctx, db)
+	DisburserService, err := d.NewDisburserService(logger, ctx, db)
 	if err != nil {
 		logger.Error("failed to instantiate the disburser service on ", "hostname", hostname, "error", err.Error())
 	}
 
-	//TODO write func to check if orders were already imported. Store in db table hash of file
-	distributions, merchants, monthly, err := disburserService.Importer.ImportOrders()
+	r := http.NewServeMux()
+
+	r.HandleFunc("/disbursement", DisburserService.Reporter.GetDisbursementReport)
+	r.HandleFunc("/import", DisburserService.Importer.Import)
+
+	err = http.ListenAndServe(":8080", r)
 	if err != nil {
-		logger.Error("failed to import orders or merchants", err.Error())
-	}
-
-	for _, v := range merchants {
-		err := disburserService.Repo.InsertMerchant(v) //TODO fix imports by making types module
-		if err != nil {
-			logger.Error(err.Error())
-		}
-
-	}
-
-	err = disburserService.ProcessOrder.ProcessBatchMonthly(monthly)
-	if err != nil {
-		logger.Error("failed to process batch monthly records", "error", err)
-	}
-
-	err = disburserService.ProcessOrder.ProcessBatchDistributions(distributions)
-	if err != nil {
-		logger.Error(err.Error())
+		logger.Error("failed to launch http server on port 8080", "error", err)
 	}
 }

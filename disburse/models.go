@@ -43,7 +43,7 @@ func NewDisburserService(logger *slog.Logger, ctx context.Context, db *sql.DB) (
 
 }
 
-func NewReporter(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo) *Report {
+func NewReporter(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository) *Report {
 	return &Report{
 		Logger:   logger,
 		Ctx:      ctx,
@@ -59,7 +59,7 @@ func NewReporter(logger *slog.Logger, ctx context.Context, repo *repo.DisburserR
 type Import struct {
 	Logger            *slog.Logger
 	Ctx               context.Context
-	Repo              repo.DisburserRepoRepository
+	Repo              *repo.DisburserRepo
 	OrdersFileName    string
 	MerchantsFileName string
 }
@@ -132,29 +132,12 @@ func isBeforeCutOffTime() (bool, error) {
 	}
 }
 
-type DBOrder struct {
-	ID                string    `json:"id,omitempty"`
-	MerchantReference string    `json:"merchant_reference,omitempty"`
-	MerchantID        uuid.UUID `json:"merchant_id,omitempty"`
-	Amount            int64     `json:"amount,omitempty"`
-	CreatedAt         time.Time `json:"created_at,omitempty"`
-}
-
-type DBMerchant struct {
-	ID                    uuid.UUID `json:"id,omitempty"`
-	Reference             string    `json:"reference,omitempty"`
-	Email                 string    `json:"email,omitempty"`
-	LiveOn                time.Time `json:"live_on,omitempty"`
-	DisbursementFrequency string    `json:"disbursement_frequency,omitempty"`
-	MinMonthlyFee         string    `json:"minimum_monthly_fee,omitempty"`
-}
-
 type Report struct {
 	Logger   *slog.Logger
 	Ctx      context.Context
+	Repo     repo.DisburserRepoRepository
 	Name     string
 	Merchant types.Merchant
-	Repo     repo.DisburserRepoRepository
 	Start    time.Time
 	End      time.Time
 	Data     []byte
@@ -167,16 +150,6 @@ type YearEndSummaryReport struct {
 	AmtCommissions      int64 `json:"amt_commissions" DB:"amt_commissions"`
 	NumberOfMonthlyFees int   `json:"number_of_monthly_fees" DB:"number_of_monthly_fees"`
 	AmountOfMonthlyFees int64 `json:"amount_of_monthly_fees" DB:"amount_of_monthly_fees"`
-}
-
-type DBReport struct {
-	logger   *slog.Logger
-	ctx      context.Context
-	Name     string
-	Merchant DBMerchant
-	Start    time.Time
-	End      time.Time
-	data     []byte
 }
 
 type OProcessor struct {

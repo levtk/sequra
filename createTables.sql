@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS MONTHLY (
     monthly_fee INT,
     total_order_amt INT,
     order_fee_total INT,
+    amt_monthly_fee_paid INT GENERATED ALWAYS AS (monthly_fee-order_fee_total) VIRTUAL,
     createdAt datetime,
     updatedAt datetime
 );

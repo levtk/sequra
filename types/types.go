@@ -1,6 +1,7 @@
 package types
 
 import (
+	"database/sql"
 	"github.com/google/uuid"
 	"time"
 )
@@ -37,12 +38,12 @@ type Disbursement struct {
 }
 
 type DisbursementReport struct {
-	Year                          time.Time `json:"year,omitempty"`
-	NumberOfDisbursements         int64     `json:"number_of_disbursements,omitempty"`
-	AmountDisbursedToMerchants    int64     `json:"amount_disbursed_to_merchants,omitempty"`
-	AmountOfOrderFees             int64     `json:"amount_of_order_fees,omitempty"`
-	NumberOfMinMonthlyFeesCharged int32     `json:"number_of_min_monthly_fees_charged,omitempty"`
-	AmountOfMonthlyFeeCharged     int64     `json:"amount_of_monthly_fee_charged,omitempty"`
+	Year                          time.Time     `json:"year,omitempty"`
+	NumberOfDisbursements         sql.NullInt64 `json:"number_of_disbursements,omitempty" DB:"number_of_disbursements"`
+	AmountDisbursedToMerchants    sql.NullInt64 `json:"amount_disbursed_to_merchants,omitempty" DB:"amt_disbursed_to_merchants"`
+	AmountOfOrderFees             sql.NullInt64 `json:"amount_of_order_fees,omitempty" DB:"amount_of_order_fees"`
+	NumberOfMinMonthlyFeesCharged sql.NullInt64 `json:"number_of_min_monthly_fees_charged,omitempty"`
+	AmountOfMonthlyFeeCharged     sql.NullInt64 `json:"amount_of_monthly_fee_charged,omitempty"`
 }
 
 type Monthly struct {

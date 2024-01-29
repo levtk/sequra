@@ -8,12 +8,13 @@ import (
 	"github.com/levtk/sequra/repo"
 	"github.com/levtk/sequra/types"
 	"log/slog"
+	"net/http"
 	"os"
 	"slices"
 	"time"
 )
 
-func NewImport(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository) *Import {
+func NewImport(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo) *Import {
 	return &Import{
 		Logger:            logger,
 		Ctx:               ctx,
@@ -36,7 +37,6 @@ func (i *Import) ImportOrders() ([]types.Disbursement, map[string]types.Merchant
 	}
 
 	sortOrdersByMerchant(orders)
-	//sortOrdersByOrderDate(orders)
 
 	merchants, err = parseDataFromMerchants(i.MerchantsFileName)
 	if err != nil {
@@ -340,4 +340,40 @@ func calculateDisbursementPeriodPayout(disbursements []types.Disbursement, i int
 		return 0, errors.New("payout total less than zero and is not an accounting adjustment")
 	}
 	return payoutTotal, nil
+}
+
+func (i *Import) Import(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusAccepted)
+
+	op := NewOrderProcessor(i.Logger, i.Ctx, i.Repo)
+	distributions, merchants, monthly, err := i.ImportOrders()
+	if err != nil {
+		i.Logger.Error("failed to import orders or merchants", err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	for _, v := range merchants {
+		err := i.Repo.InsertMerchant(v)
+		if err != nil {
+			i.Logger.Error(err.Error())
+		}
+
+	}
+
+	err = op.ProcessBatchMonthly(monthly)
+	if err != nil {
+		i.Logger.Error("failed to process batch monthly records", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	err = op.ProcessBatchDistributions(distributions)
+	if err != nil {
+		i.Logger.Error("failed to process batch distributions", "error", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
 }
