@@ -56,7 +56,7 @@ func (r *Report) NumberMonthlyPaymentsByYear(logger *slog.Logger, YYYY string, d
 
 func (r *Report) DisbursementReport(logger *slog.Logger, repo repo.DisburserRepoRepository, YYYY string) (types.DisbursementReport, error) {
 	disbursementReport := types.DisbursementReport{}
-	numMonthlyFeesCharged, amtOfMonthlyFeeCharged, amtOrderFees, err := repo.GetMonthlyFeesPaidByYear(YYYY)
+	numMonthlyFeesCharged, amtOfMonthlyFeeCharged, _, err := repo.GetMonthlyFeesPaidByYear(YYYY)
 	if err != nil {
 		logger.Error("failed to get monthly fees paid by year", "error", err)
 		return disbursementReport, err
@@ -70,7 +70,6 @@ func (r *Report) DisbursementReport(logger *slog.Logger, repo repo.DisburserRepo
 
 	disprpt.NumberOfMinMonthlyFeesCharged = numMonthlyFeesCharged
 	disprpt.AmountOfMonthlyFeeCharged = amtOfMonthlyFeeCharged
-	disprpt.AmountOfOrderFees = amtOrderFees
 
 	return disprpt, nil
 }

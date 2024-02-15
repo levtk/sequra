@@ -343,7 +343,6 @@ func calculateDisbursementPeriodPayout(disbursements []types.Disbursement, i int
 }
 
 func (i *Import) Import(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusAccepted)
 
 	op := NewOrderProcessor(i.Logger, i.Ctx, i.Repo)
 	distributions, merchants, monthly, err := i.ImportOrders()

@@ -1,4 +1,4 @@
-# Security Backend Coding Challenge
+# Sequra Backend Coding Challenge
 
 This challenge was written in Google Go programming language. There are a few items I have not
 addressed due to time constraints which I will outline below at the end of this README.
@@ -7,8 +7,8 @@ addressed due to time constraints which I will outline below at the end of this 
 
 | Year | Number of Disbursements | Amt Disbursed to Merchants | Amt of Order Fees | Number of Monthly Fees Charged | Amt of Monthly Fees Charged |
 |------|-------------------------|----------------------------|-------------------|--------------------------------|-----------------------------|
-| 2022 | 1,547                   | €36,433,527.69             | €226.45           | 29                             | €750.00                     |
-| 2023 | 10,365                  | €182,392,281.43            | €1,177.73         | 148                            | €3,915.00                   |
+| 2022 | 1,547                   | €36,433,527.69             | €1,419,169.02     | 29                             | €750.00                     |
+| 2023 | 10,365                  | €182,392,281.43            | €7,290,126.22     | 148                            | €3,915.00                   |
 
 
 ## Setup and Run

@@ -27,7 +27,7 @@ func parseDataFromOrders(fileName string) (Orders, error) {
 	defer func(ofd *os.File) {
 		err := ofd.Close()
 		if err != nil {
-
+			logger.Error("failed to close file", "error", err)
 		}
 	}(ofd)
 
