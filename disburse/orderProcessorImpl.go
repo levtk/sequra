@@ -2,10 +2,10 @@ package disburse
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"github.com/google/uuid"
 	"github.com/levtk/sequra/repo"
+	"github.com/levtk/sequra/types"
 	"log/slog"
 	"time"
 )
@@ -31,21 +31,24 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 
 	ok, err := op.Order.IsBeforeTimeCutOff()
 	if ok && err == nil {
+		o.Lock()
 		merch, err := disburserRepo.GetMerchantByReferenceID(o.MerchantReference)
+		o.Unlock()
 		if err != nil {
-			logger.Error("failed to get merchant by reference id", err.Error())
+			logger.Error("failed to get merchant by reference id", "error", err.Error())
 			return err
 		}
-
-		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, Merchant(merch), of)
+		o.Lock()
+		disbursement, err := buildDisbursement(logger, ctx, disburserRepo, o, merch, of)
+		o.Unlock()
 		if err != nil {
-			logger.Error("could not build disbursement", err.Error())
+			logger.Error("could not build disbursement", "error", err.Error())
 			return err
 		}
 
 		_, err = disburserRepo.InsertDisbursement(disbursement)
 		if err != nil {
-			logger.Error("failed to insert disbursement", err.Error())
+			logger.Error("failed to insert disbursement", "error", err.Error())
 			return err
 		}
 	}
@@ -53,14 +56,14 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 }
 
 // buildDisbursement contains the logic to determine if the order is before the cutoff time and whether the merchant is disbursed daily or weekly. It then
-// builds the repo.Disbursement struct filling the required fields.
-func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch Merchant, orderFee int64) (repo.Disbursement, error) {
+// builds the Disbursement struct filling the required fields.
+func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch types.Merchant, orderFee int64) (types.Disbursement, error) {
 	disbursementID := uuid.NewString()
 	var pd time.Time
-	var payoutDate string
+	var payoutDate time.Time
 	disbursementFreq := merch.DisbursementFrequency
 	switch disbursementFreq {
-	case DAILY:
+	case types.DAILY:
 		ok, err := o.IsBeforeTimeCutOff()
 		if ok && err == nil {
 			pd = time.Now().UTC()
@@ -68,38 +71,65 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 		if !ok && err == nil {
 			pd = pd.AddDate(0, 0, 1)
 		}
-		payoutDate = pd.Format(time.DateOnly)
+		payoutDate = pd
 
-	case WEEKLY:
+	case types.WEEKLY:
 		pd, err := merch.GetNextPayoutDate()
 		if err != nil {
-			return repo.Disbursement{}, err
+			return types.Disbursement{}, err
 		}
-		payoutDate = pd.Format(time.DateOnly)
+		payoutDate = pd
 
 	default:
-		return repo.Disbursement{}, errors.New("merchants disbursement frequency is not supported")
+		return types.Disbursement{}, errors.New("merchants disbursement frequency is not supported")
 	}
 
 	var disbursementGroupID string
 	disbGrpID, err := disburserRepo.GetDisbursementGroupID(ctx, payoutDate, merch.Reference)
 	if err == nil {
 		disbursementGroupID = disbGrpID
-	} else if errors.Is(sql.ErrNoRows, err) {
-		disbursementGroupID = uuid.NewString()
 	} else {
-		logger.Error("could not get disbursement group id from disburserRepoRepository", err.Error())
-		return repo.Disbursement{}, err
+		logger.Error("could not get disbursement group id or create it from disburserRepoRepository", "error", err.Error())
+		return types.Disbursement{}, err
 	}
 
-	return repo.Disbursement{
-		ID:                  disbursementID,
-		DisbursementGroupID: disbursementGroupID,
-		MerchReference:      merch.Reference,
-		OrderID:             o.ID,
-		OrderFee:            orderFee,
-		RunningTotal:        0,
-		PayoutDate:          payoutDate,
-		IsPaidOut:           false,
+	return types.Disbursement{
+		RecordUUID:           disbursementID,
+		DisbursementGroupID:  disbursementGroupID,
+		MerchReference:       merch.Reference,
+		OrderID:              o.ID,
+		OrderFee:             orderFee,
+		OrderFeeRunningTotal: 0,
+		PayoutDate:           payoutDate,
+		IsPaidOut:            false,
 	}, err
+}
+
+func (op *OProcessor) ProcessBatchDistributions(disbursements []types.Disbursement) error {
+	for i := 0; i < len(disbursements); i++ {
+		if disbursements[i].RecordUUID == "" {
+			continue
+		}
+
+		_, err := op.disburserRepoRepository.InsertDisbursement(disbursements[i])
+		if err != nil {
+			op.logger.Error("error inserting disbursement record", err.Error())
+			return err
+		}
+	}
+	return nil
+}
+
+func (op *OProcessor) ProcessBatchMonthly(monthly []types.Monthly) error {
+	for i := 0; i < len(monthly); i++ {
+		if monthly[i].MerchantReference == "" {
+			continue
+		}
+
+		err := op.disburserRepoRepository.InsertMonthly(monthly[i])
+		if err != nil {
+			op.logger.Error("failed to insert monthly record", "error", err)
+		}
+	}
+	return nil
 }

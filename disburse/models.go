@@ -6,23 +6,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/levtk/sequra/repo"
+	"github.com/levtk/sequra/types"
 	"log/slog"
-	"strconv"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
-)
-
-const (
-	RATE_LESS_THAN_50       int64  = 10
-	RATE_BETWEEN_50_AND_300 int64  = 5
-	RATE_ABOVE_300          int64  = 25
-	MAX_ORDER               int64  = 1000000 //Should be configured per Merchant during onboarding
-	TIME_CUT_OFF            string = "08:00"
-	OREDERS_FILENAME               = "orders.csv"
-	MERCHANTS_FILENAME             = "merchants.csv"
-	WEEKLY                         = "WEEKLY"
-	DAILY                          = "DAILY"
 )
 
 type DisburserService struct {
@@ -54,44 +43,25 @@ func NewDisburserService(logger *slog.Logger, ctx context.Context, db *sql.DB) (
 
 }
 
-func NewReporter(logger *slog.Logger, ctx context.Context, repo *repo.DisburserRepo) *Report {
+func NewReporter(logger *slog.Logger, ctx context.Context, repo repo.DisburserRepoRepository) *Report {
 	return &Report{
-		logger:   logger,
-		ctx:      ctx,
-		repo:     repo,
+		Logger:   logger,
+		Ctx:      ctx,
+		Repo:     repo,
 		Name:     "",
-		Merchant: Merchant{},
+		Merchant: types.Merchant{},
 		Start:    time.Time{},
 		End:      time.Time{},
-		data:     nil,
+		Data:     nil,
 	}
 }
 
-// Report implements the Reporter interface
-type Report struct {
-	logger   *slog.Logger
-	ctx      context.Context
-	Name     string
-	Merchant Merchant
-	repo     repo.DisburserRepoRepository
-	Start    time.Time
-	End      time.Time
-	data     []byte
-}
-
 type Import struct {
-	logger            *slog.Logger
-	ctx               context.Context
-	ordersFileName    string
-	merchantsFileName string
-	repo              repo.DisburserRepoRepository
-}
-
-type OProcessor struct {
-	Order                   *Order
-	disburserRepoRepository *repo.DisburserRepo
-	logger                  *slog.Logger
-	ctx                     context.Context
+	Logger            *slog.Logger
+	Ctx               context.Context
+	Repo              *repo.DisburserRepo
+	OrdersFileName    string
+	MerchantsFileName string
 }
 
 type Order struct {
@@ -100,6 +70,93 @@ type Order struct {
 	MerchantID        uuid.UUID `json:"merchant_id,omitempty"`
 	Amount            int64     `json:"amount,omitempty"`
 	CreatedAt         time.Time `json:"created_at,omitempty"`
+	sync.RWMutex
+}
+
+func newOrder(id string, merchRef string, amount int64, createdAt string) (*Order, error) {
+	o := new(Order)
+	o.ID = id
+	o.MerchantReference = merchRef
+	o.Amount = amount
+	created, err := time.Parse(time.DateOnly, createdAt)
+	if err != nil {
+		return o, err
+	}
+
+	o.CreatedAt = created
+	return o, nil
+}
+
+type Orders []*Order
+
+func (s Orders) Len() int {
+	return len(s)
+}
+
+func (s Orders) Swap(i int, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+
+// ByMerchRef implements the sort.Interface by implementing the len and swap methods
+type ByMerchRef struct {
+	Orders
+}
+
+func (s ByMerchRef) Less(i int, j int) bool {
+	return s.Orders[i].MerchantReference < s.Orders[j].MerchantReference
+}
+
+type ByOrderDate struct {
+	Orders
+}
+
+func (s ByOrderDate) Less(i int, j int) bool {
+	return s.Orders[i].CreatedAt.Before(s.Orders[j].CreatedAt)
+}
+
+func getOrdersByMerchRef(merchRef string) ([]Order, error) {
+	//TODO implement
+	return []Order{}, nil
+}
+
+func isBeforeCutOffTime() (bool, error) {
+	now := time.Now().UTC()
+	cutOff, err := time.Parse("15:04", types.TIME_CUT_OFF)
+	if err != nil {
+		return false, err
+	}
+	if now.Sub(cutOff) < 0 {
+		return true, nil
+	} else {
+		return false, nil
+	}
+}
+
+type Report struct {
+	Logger   *slog.Logger
+	Ctx      context.Context
+	Repo     repo.DisburserRepoRepository
+	Name     string
+	Merchant types.Merchant
+	Start    time.Time
+	End      time.Time
+	Data     []byte
+}
+
+type YearEndSummaryReport struct {
+	Year                int   `json:"year" DB:"year"`
+	NumOfDisbursements  int   `json:"num_of_disbursements" DB:"num_of_disbursements"`
+	AmtDisbursed        int64 `json:"amt_disbursed" DB:"amt_disbursed"`
+	AmtCommissions      int64 `json:"amt_commissions" DB:"amt_commissions"`
+	NumberOfMonthlyFees int   `json:"number_of_monthly_fees" DB:"number_of_monthly_fees"`
+	AmountOfMonthlyFees int64 `json:"amount_of_monthly_fees" DB:"amount_of_monthly_fees"`
+}
+
+type OProcessor struct {
+	Order                   *Order
+	disburserRepoRepository *repo.DisburserRepo
+	logger                  *slog.Logger
+	ctx                     context.Context
 }
 
 func NewOrder(id string, merchantReference string, amount int64) *Order {
@@ -113,12 +170,16 @@ func NewOrder(id string, merchantReference string, amount int64) *Order {
 }
 
 func (o *Order) IsBeforeTimeCutOff() (bool, error) {
-	cutoff, err := time.Parse(time.TimeOnly, TIME_CUT_OFF)
+	cutoff, err := time.Parse(time.TimeOnly, types.TIME_CUT_OFF)
+	if err != nil {
+		return false, err
+	}
+	now, err := time.Parse(time.TimeOnly, time.Now().UTC().Format(time.TimeOnly))
 	if err != nil {
 		return false, err
 	}
 
-	if time.Now().UTC().Before(cutoff) {
+	if now.Before(cutoff) {
 		return true, nil
 	}
 
@@ -126,56 +187,13 @@ func (o *Order) IsBeforeTimeCutOff() (bool, error) {
 }
 
 func (o *Order) CalculateOrderFee() (int64, error) {
+	o.Lock()
 	fee, err := calculateOrderFee(o.Amount)
 	if err != nil {
 		return 0, err
 	}
+	o.Unlock()
 	return fee, nil
-}
-
-type Merchant struct {
-	ID                    uuid.UUID `json:"id,omitempty"`
-	Reference             string    `json:"reference,omitempty"`
-	Email                 string    `json:"email,omitempty"`
-	LiveOn                time.Time `json:"live_on,omitempty"`
-	DisbursementFrequency string    `json:"disbursement_frequency,omitempty"`
-	MinMonthlyFee         string    `json:"minimum_monthly_fee,omitempty"`
-}
-
-func (m *Merchant) GetMinMonthlyFee() (int64, error) {
-	mmf, err := strconv.ParseFloat(m.MinMonthlyFee, 64)
-	if err != nil {
-		return 0, err
-	}
-	return int64(mmf * 100), nil
-}
-
-func (m *Merchant) GetMinMonthlyFeeRemaining() (int64, error) {
-	//TODO Implement
-	return 0, errors.New("not implemented.")
-}
-
-func (m *Merchant) GetNextPayoutDate() (time.Time, error) {
-	wd := m.LiveOn.UTC().Weekday()
-	today := time.Now().UTC().Weekday()
-
-	todayDate := time.Now().UTC()
-
-	if int(today) == int(wd) {
-		return todayDate, nil
-	}
-
-	daysUntil := 7 - int(today)
-	return todayDate.AddDate(0, 0, daysUntil), nil
-}
-
-type DisbursementReport struct {
-	Year                          time.Time `json:"year,omitempty"`
-	NumberOfDisbursements         int64     `json:"number_of_disbursements,omitempty"`
-	AmountDisbursedToMerchants    int64     `json:"amount_disbursed_to_merchants,omitempty"`
-	AmountOfOrderFees             int64     `json:"amount_of_order_fees,omitempty"`
-	NumberOfMinMonthlyFeesCharged int32     `json:"number_of_min_monthly_fees_charged,omitempty"`
-	AmountOfMonthlyFeeCharged     int64     `json:"amount_of_monthly_fee_charged,omitempty"`
 }
 
 func (o *Order) ProcessOrder() error {
@@ -185,7 +203,7 @@ func (o *Order) ProcessOrder() error {
 }
 
 type Disbursement struct {
-	ID                  string `json:"ID" DB:"ID"`
+	ID                  string `json:"RecordUUID" DB:"RecordUUID"`
 	DisbursementGroupID string `json:"DisbursementGroupID" DB:"disbursement_group_id"`
 	MerchReference      string `json:"MerchReference" DB:"merchReference"`
 	OrderID             string `json:"OrderID" DB:"order_id"`
@@ -197,21 +215,21 @@ type Disbursement struct {
 
 func calculateOrderFee(orderAmt int64) (orderFee int64, err error) {
 	if orderAmt > 0 && orderAmt < 5000 {
-		orderFee = RATE_LESS_THAN_50 * orderAmt / 100
+		orderFee = types.RATE_LESS_THAN_50 * orderAmt / 100
 		return orderFee, nil
 	}
 
 	if orderAmt > 5000 && orderAmt < 30000 {
-		orderFee = RATE_BETWEEN_50_AND_300 * orderAmt / 100
+		orderFee = types.RATE_BETWEEN_50_AND_300 * orderAmt / 100
 		return orderFee, nil
 	}
 
 	if orderAmt > 30000 {
-		orderFee = RATE_ABOVE_300 * orderAmt / 1000
+		orderFee = types.RATE_ABOVE_300 * orderAmt / 1000
 		return orderFee, nil
 	}
 
-	if orderAmt > MAX_ORDER {
+	if orderAmt > types.MAX_ORDER {
 		return -1, errors.New("orderamt submitted above max orderamt value permitted")
 	}
 
@@ -228,35 +246,7 @@ func getMerchantReferenceFromOrder(o Order) (string, error) {
 	return merchRef, nil
 }
 
-func getMerchant(merchRef string) (Merchant, error) {
+func getMerchant(merchRef string) (types.Merchant, error) {
 	// TODO implement
-	return Merchant{}, nil
-}
-
-func (m Merchant) calculateDailyTotalOrders() (int64, error) {
-	//TODO implement
-	return -1, nil
-}
-
-func (m Merchant) calculateWeeklyTotalOrders() (int64, error) {
-	//TODO implement
-	return -1, nil
-}
-
-func getOrdersByMerchRef(merchRef string) ([]Order, error) {
-	//TODO implement
-	return []Order{}, nil
-}
-
-func isBeforeCutOffTime() (bool, error) {
-	now := time.Now().UTC()
-	cutOff, err := time.Parse("15:04", TIME_CUT_OFF)
-	if err != nil {
-		return false, err
-	}
-	if now.Sub(cutOff) < 0 {
-		return true, nil
-	} else {
-		return false, nil
-	}
+	return types.Merchant{}, nil
 }
