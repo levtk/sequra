@@ -1,0 +1,4 @@
+github.com/google/uuid v1.5.0 h1:1p67kYwdtXjb0gL0BPiP1Av9wiZPo5A8z2cWkTZ+eyU=
+github.com/google/uuid v1.5.0/go.mod h1:TIyPZe4MgqvfeYDBFedMoGGpEw/LqOeaOT+nhxU+yHo=
+github.com/levtk/sequra/types v0.0.0-20240215134242-f946c86a5575 h1:P3YcCW5Dm46PsSBxE0KODpQtv1Iec9m8Pi/00rovGk0=
+github.com/levtk/sequra/types v0.0.0-20240215134242-f946c86a5575/go.mod h1:ZNePOuNsYy3F9ZQvqJp6NW3xtCsOH18hZPtYxBqEKHQ=

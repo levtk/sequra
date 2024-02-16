@@ -4,10 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
 	"github.com/levtk/sequra/reports"
 	"github.com/levtk/sequra/types"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"time"
 )

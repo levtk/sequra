@@ -3,16 +3,16 @@ package main
 import (
 	"context"
 	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 	d "github.com/levtk/sequra/disburse"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"net/http"
 	"os"
 )
 
 const (
-	driverName = "sqlite3"
-	DSN        = "./disbursement.sqlite"
+	driverName = "mysql"
+	DSN        = "disbursement"
 )
 
 func main() {
