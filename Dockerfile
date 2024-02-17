@@ -31,7 +31,7 @@ RUN apk --no-cache add ca-certificates tzdata
 
 
 #expose required ports
-EXPOSE 80
+EXPOSE 8080
 EXPOSE 443
 
 ENTRYPOINT ["/app/disburser"]

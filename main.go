@@ -12,7 +12,7 @@ import (
 
 const (
 	driverName = "mysql"
-	DSN        = "root:yourrootpassword@tcp(localhost:3306)/disbursement"
+	DSN        = "root:yourrootpassword@tcp(db:3306)/disbursement"
 )
 
 func main() {
