@@ -2,8 +2,8 @@ package main
 
 import (
 	"context"
-	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/jmoiron/sqlx"
 	d "github.com/levtk/sequra/disburse"
 	"log/slog"
 	"net/http"
@@ -12,7 +12,7 @@ import (
 
 const (
 	driverName = "mysql"
-	DSN        = "disbursement"
+	DSN        = "root:yourrootpassword@tcp(localhost:3306)/disbursement"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 
 	logger.Info("starting disbursement service on", "hostname", hostname)
 	logger.Info("staring database...")
-	db, err := sql.Open(driverName, DSN)
+	db, err := sqlx.Connect(driverName, DSN)
 	if err != nil {
 		logger.Error("failed to connect to db", err.Error())
 	}

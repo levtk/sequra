@@ -2,9 +2,9 @@ package disburse
 
 import (
 	"context"
-	"database/sql"
 	"errors"
 	"fmt"
+	"github.com/jmoiron/sqlx"
 	"github.com/levtk/sequra/repo"
 	"github.com/levtk/sequra/types"
 	"log/slog"
@@ -23,7 +23,7 @@ type DisburserService struct {
 	Repo         repo.DisburserRepoRepository
 }
 
-func NewDisburserService(logger *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserService, error) {
+func NewDisburserService(logger *slog.Logger, ctx context.Context, db *sqlx.DB) (*DisburserService, error) {
 	repo, err := repo.NewDisburserRepo(logger, ctx, db)
 	if err != nil {
 		return &DisburserService{}, err
