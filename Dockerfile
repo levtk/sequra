@@ -1,5 +1,5 @@
 # syntax=docker/dockerfile:2
-FROM golang:latest AS build_base
+FROM golang:1.22.0 AS build_base
 
 #setting working directory to /app
 WORKDIR /app
@@ -8,7 +8,7 @@ WORKDIR /app
 COPY . .
 
 #run go mod download and go mod verify
-RUN go mod download && go mod verify
+RUN go get -u && go mod verify
 
 #run go build
 RUN CGO_ENABLED=0 GOOS=linux go build -o disburser .
@@ -31,7 +31,7 @@ RUN apk --no-cache add ca-certificates tzdata
 
 
 #expose required ports
-EXPOSE 80
+EXPOSE 8080
 EXPOSE 443
 
 ENTRYPOINT ["/app/disburser"]

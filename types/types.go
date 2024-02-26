@@ -24,8 +24,8 @@ type Merchant struct {
 }
 
 type Disbursement struct {
-	RecordUUID           string    `json:"RecordUUID" DB:"record_uuid"`
-	DisbursementGroupID  string    `json:"DisbursementGroupID" DB:"disbursement_group_id"`
+	RecordUUID           uuid.UUID `json:"RecordUUID" DB:"record_uuid"`
+	DisbursementGroupID  uuid.UUID `json:"DisbursementGroupID" DB:"disbursement_group_id"`
 	TransactionID        string    `json:"TransactionID" DB:"transaction_id"`
 	MerchReference       string    `json:"MerchReference" DB:"merchReference"`
 	OrderID              string    `json:"OrderID" DB:"order_id"`

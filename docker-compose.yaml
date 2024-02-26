@@ -1,19 +1,23 @@
 version: "3.8"
 services:
-  lev-web:
+  api-ledger:
     build:
-      dockerfile: ./Dockerfile
+      dockerfile: Dockerfile
+    container_name: api
+    networks: [backend]
     ports:
-      - "80:80"
+      - "8080:8080"
       - "443:443"
+    depends_on: [db]
 
   db:
     image: mariadb:10.6
-    env_file: /Users/levtk/go/src/levtk/sequra/.env
-    volumes:
-      - ~/docker/volumes/mariadb/data:/var/lib/mysql
-      - ~/docker/volumes/mariadb/config:/etc/mysql/conf.d
-      - ~/docker/volumes/mariadb/config/docker-entrypoint-initdb.d/
+    container_name: db
+    env_file: /Users/levtk/go/src/levtk/sequra/.env #this path should be where you have your source code for this project
+    networks: [backend]
     ports:
       - "3306:3306"
+networks:
+  backend:
+  frontend:
 

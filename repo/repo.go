@@ -4,10 +4,11 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/levtk/sequra/reports"
 	"github.com/levtk/sequra/types"
-	_ "github.com/mattn/go-sqlite3"
 	"log/slog"
 	"time"
 )
@@ -16,28 +17,26 @@ const (
 	insertMerchant = `INSERT INTO MERCHANTS (id, reference, email, live_on, disbursement_frequency, minimum_monthly_fee) VALUES (
                     ?,?,?,?,?,?);`
 
-	getOrdersByMerchantUUID = `SELECT * FROM ORDERS WHERE id=:merchantUUID;`
+	getOrdersByMerchantReferenceID = `SELECT * FROM ORDERS WHERE merchant_reference=?;`
 
-	getOrdersByMerchantReferenceID = `SELECT * FROM ORDERS WHERE merchant_reference=:merchRef;`
+	getMerchantByReferenceID = `SELECT * FROM MERCHANTS WHERE reference=?;`
 
-	getMerchantByReferenceID = `SELECT * FROM MERCHANTS WHERE reference=:referenceID;`
+	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, merchant_id, amount, created_at) VALUES(?,?,?,?,?);`
 
-	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, amount, created_at) VALUES(?,?,?,?);`
+	insertDisbursement = `INSERT INTO DISBURSEMENT(id,record_uuid, disbursement_group_id, merchReference, order_id, order_fee, order_fee_running_total, payout_date, payout_running_total, payout_total, is_paid_out)
+	VALUES (?,?,?,?,?,?,?,?,?,?,?);`
 
-	insertDisbursement = `INSERT INTO DISBURSEMENT(record_uuid, disbursement_group_id, merchReference, order_id, order_fee, order_fee_running_total, payout_date, payout_running_total, payout_total, is_paid_out)
-	VALUES (?,?,?,?,?,?,?,?,?,?);`
+	getDisbursementGroupID = `SELECT disbursement_group_id FROM DISBURSEMENT WHERE payout_date=? AND merchReference=?;`
 
-	getDisbursementGroupID = `SELECT (disbursement_group_id) FROM DISBURSEMENT WHERE payout_date=:today AND merchReference=:merchRef;`
+	getNumberOfDisbursementsByYear = `SELECT COUNT(*) FROM (SELECT * FROM DISBURSEMENT WHERE is_paid_out=1 AND payout_date LIKE ?) AS d;`
 
-	getNumberOfDisbursementsByYear = `SELECT COUNT() FROM DISBURSEMENT WHERE is_paid_out=1 AND payout_date LIKE :YYYY;`
-
-	getTotalCommissionAndTotalPayoutByYear = `SELECT  COUNT() AS number_of_disbursements, SUM(DISBURSEMENT.payout_total) AS amt_disbursed_to_merchants, SUM(DISBURSEMENT.order_fee_running_total) AS amount_of_order_fees FROM DISBURSEMENT WHERE is_paid_out = 1 AND payout_date LIKE @YYYY || '%';`
+	getTotalCommissionAndTotalPayoutByYear = `SELECT  COUNT(*) AS number_of_disbursements, SUM(DISBURSEMENT.payout_total) AS amt_disbursed_to_merchants, SUM(DISBURSEMENT.order_fee_running_total) AS amount_of_order_fees FROM DISBURSEMENT WHERE is_paid_out = TRUE AND payout_date LIKE ?;`
 
 	insertMonthly = `INSERT INTO MONTHLY(id, merchant_id, merchant_reference, monthly_fee_date, did_pay_fee, 
                     monthly_fee, total_order_amt, order_fee_total, createdAt, updatedAt) VALUES (?,?,?,?,?,?,?,?,?,?);`
 
 	getMonthlyFeeTotalsByYear = `SELECT COUNT(*) as count, SUM(monthly_fee) AS total_monthly_fees, SUM(order_fee_total) AS total_order_fees, SUM(amt_monthly_fee_paid) AS total_monthly_fees_paid FROM MONTHLY
-										WHERE createdAt LIKE @YYYY || '%'  AND did_pay_fee = 1;`
+										WHERE createdAt LIKE ? AND did_pay_fee = TRUE;`
 )
 
 type DisburserRepoRepository interface {
@@ -46,7 +45,7 @@ type DisburserRepoRepository interface {
 	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (reports.Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (types.Merchant, error)
 	GetMerchantByReferenceID(merchantReferenceID string) (types.Merchant, error)
-	GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (string, error)
+	GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (uuid.UUID, error)
 	InsertOrder(order types.Order) error
 	InsertDisbursement(disbursement types.Disbursement) (lastInsertID int64, err error)
 	InsertMerchant(m types.Merchant) error
@@ -57,7 +56,7 @@ type DisburserRepoRepository interface {
 }
 
 type DisburserRepo struct {
-	db                                     *sql.DB
+	db                                     *sqlx.DB
 	ctx                                    context.Context
 	logger                                 *slog.Logger
 	insertOrder                            *sql.Stmt
@@ -74,7 +73,7 @@ type DisburserRepo struct {
 	getMonthlyFeesPaidByYear               *sql.Stmt
 }
 
-func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sql.DB) (*DisburserRepo, error) {
+func NewDisburserRepo(l *slog.Logger, ctx context.Context, db *sqlx.DB) (*DisburserRepo, error) {
 	insOrderStmt, err := db.Prepare(insertOrder)
 	if err != nil {
 		return &DisburserRepo{}, err
@@ -190,20 +189,20 @@ func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (t
 }
 
 // GetDisbursementGroupID returns the row with groupID if exists or err which should be ErrNoRows which tells us we need to create the groupID
-func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (string, error) {
-	var refId string
+func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (uuid.UUID, error) {
+	var refId uuid.UUID
 	t := today.Format(time.DateOnly)
 	row := dr.getDisbursementGroupID.QueryRowContext(ctx, t, merchRef)
 	err := row.Err()
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, err
 	}
 
 	err = row.Scan(refId)
 	if errors.Is(err, sql.ErrNoRows) {
-		dgID := uuid.NewString()
-		return dgID, nil
+		return uuid.UUID{}, err
 	}
+
 	return refId, nil
 }
 
@@ -261,8 +260,8 @@ func (dr *DisburserRepo) InsertMerchant(m types.Merchant) error {
 func (dr *DisburserRepo) InsertMonthly(m types.Monthly) error {
 	id := m.ID.String()
 	merchID := m.MerchantID.String()
-	monDate := m.MonthlyFeeDate.String()
-	createdAt := m.CreatedAt.String()
+	monDate := m.MonthlyFeeDate
+	createdAt := m.CreatedAt
 	_, err := dr.insMonthly.Exec(id, merchID, m.MerchantReference, monDate, m.DidPayFee, m.MonthlyFee, m.TotalOrderAmt, m.OrderFeeTotal, createdAt, time.Now().UTC().Format(time.DateTime))
 	if err != nil {
 		dr.logger.Info("failed to insert", "monthly", m)
