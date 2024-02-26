@@ -45,7 +45,7 @@ type DisburserRepoRepository interface {
 	GetMerchantDisbursementsByRange(logger slog.Logger, merchantUUID uuid.UUID, start time.Time, end time.Time) (reports.Report, error)
 	GetMerchant(merchantUUID uuid.UUID) (types.Merchant, error)
 	GetMerchantByReferenceID(merchantReferenceID string) (types.Merchant, error)
-	GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (string, error)
+	GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (uuid.UUID, error)
 	InsertOrder(order types.Order) error
 	InsertDisbursement(disbursement types.Disbursement) (lastInsertID int64, err error)
 	InsertMerchant(m types.Merchant) error
@@ -189,20 +189,20 @@ func (dr *DisburserRepo) GetMerchantByReferenceID(merchantReferenceID string) (t
 }
 
 // GetDisbursementGroupID returns the row with groupID if exists or err which should be ErrNoRows which tells us we need to create the groupID
-func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (string, error) {
-	var refId string
+func (dr *DisburserRepo) GetDisbursementGroupID(ctx context.Context, today time.Time, merchRef string) (uuid.UUID, error) {
+	var refId uuid.UUID
 	t := today.Format(time.DateOnly)
 	row := dr.getDisbursementGroupID.QueryRowContext(ctx, t, merchRef)
 	err := row.Err()
 	if err != nil {
-		return "", err
+		return uuid.UUID{}, err
 	}
 
 	err = row.Scan(refId)
 	if errors.Is(err, sql.ErrNoRows) {
-		dgID := uuid.NewString()
-		return dgID, nil
+		return uuid.UUID{}, err
 	}
+
 	return refId, nil
 }
 
@@ -260,8 +260,8 @@ func (dr *DisburserRepo) InsertMerchant(m types.Merchant) error {
 func (dr *DisburserRepo) InsertMonthly(m types.Monthly) error {
 	id := m.ID.String()
 	merchID := m.MerchantID.String()
-	monDate := m.MonthlyFeeDate.String()
-	createdAt := m.CreatedAt.String()
+	monDate := m.MonthlyFeeDate
+	createdAt := m.CreatedAt
 	_, err := dr.insMonthly.Exec(id, merchID, m.MerchantReference, monDate, m.DidPayFee, m.MonthlyFee, m.TotalOrderAmt, m.OrderFeeTotal, createdAt, time.Now().UTC().Format(time.DateTime))
 	if err != nil {
 		dr.logger.Info("failed to insert", "monthly", m)

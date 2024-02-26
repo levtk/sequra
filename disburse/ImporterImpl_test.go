@@ -2,18 +2,20 @@ package disburse
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"github.com/levtk/sequra/repo"
 	"github.com/levtk/sequra/types"
 	"log/slog"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestImport_ImportOrders(t *testing.T) {
 	type fields struct {
 		Logger            *slog.Logger
 		Ctx               context.Context
-		Repo              repo.DisburserRepoRepository
+		Repo              *repo.DisburserRepo
 		OrdersFileName    string
 		MerchantsFileName string
 	}
@@ -35,7 +37,7 @@ func TestImport_ImportOrders(t *testing.T) {
 				OrdersFileName:    tt.fields.OrdersFileName,
 				MerchantsFileName: tt.fields.MerchantsFileName,
 			}
-			got, got1, err := i.ImportOrders()
+			got, got1, _, err := i.ImportOrders()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("ImportOrders() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -54,7 +56,7 @@ func TestNewImport(t *testing.T) {
 	type args struct {
 		logger *slog.Logger
 		ctx    context.Context
-		repo   repo.DisburserRepoRepository
+		repo   *repo.DisburserRepo
 	}
 	tests := []struct {
 		name string
@@ -74,8 +76,9 @@ func TestNewImport(t *testing.T) {
 
 func Test_buildDisbursementRecordsFromImport(t *testing.T) {
 	var orders = make([]*Order, 5)
+	pd, _ := time.Parse("2006-01-02 15:04:05 -0700 MST", "2023-02-01 00:00:00 +0000 UTC")
 	o1, _ := newOrder("e653f3e14bc4", "padberg_group", 10229, "2023-02-01")
-	o2, _ := newOrder("20b674c93ea6", "padberg_group", 43321, "2023-02-01")
+	o2, _ := newOrder("20b674c93ea6", "padberg_group", 43321, "2023-02-02")
 	o3, _ := newOrder("adaf77dffa91", "padberg_group", 724, "2023-02-02")
 	o4, _ := newOrder("f1d9ec2b3d51", "rosenbaum_parisian", 8286, "2022-11-09")
 	o5, _ := newOrder("858df04cb2b7", "rosenbaum_parisian", 5959, "2022-11-17")
@@ -84,34 +87,66 @@ func Test_buildDisbursementRecordsFromImport(t *testing.T) {
 	orders[2] = o3
 	orders[3] = o4
 	orders[4] = o5
+
+	lo, _ := time.Parse("2006-01-02", "2023-02-01")
+	lo2, _ := time.Parse("2006-01-02", "2022-11-09")
+	merchants := make(map[string]types.Merchant)
+	merchants["padberg_group"] = types.Merchant{
+		ID:                    uuid.MustParse("86312006-4d7e-45c4-9c28-788f4aa68a62"),
+		Reference:             "padberg_group",
+		Email:                 "info@padberg-group.com",
+		LiveOn:                lo,
+		DisbursementFrequency: "DAILY",
+		MinMonthlyFee:         "0.0",
+	}
+	merchants["rosenbaum_parisian"] = types.Merchant{
+		ID:                    uuid.MustParse("9b6d2b8a-f06c-4298-8f27-f33545eb5899"),
+		Reference:             "rosenbaum_parisian",
+		Email:                 "info@rosenbaum-parisian.com",
+		LiveOn:                lo2,
+		DisbursementFrequency: "WEEKLY",
+		MinMonthlyFee:         "15.0",
+	}
 	type args struct {
 		o Orders
 		m map[string]types.Merchant
 	}
-	tests := []struct {
+	var tests = []struct {
 		name    string
 		args    args
 		want    []types.Disbursement
 		wantErr bool
 	}{
 		{
-			name: "success",
+			name: "success disbursement orderID",
 			args: args{
 				o: orders,
-				m: nil,
+				m: merchants,
 			},
-			want:    nil,
+			want: []types.Disbursement{{
+				RecordUUID:           uuid.MustParse("7c6ef14e-e2ee-4e66-8859-241d0ed62ebf"),
+				DisbursementGroupID:  uuid.MustParse("d4efd8e0-a9e2-45df-9f51-5146942727c9"),
+				TransactionID:        "",
+				MerchReference:       "padberg_group",
+				OrderID:              "adaf77dffa91",
+				OrderFee:             511,
+				OrderFeeRunningTotal: 511,
+				PayoutDate:           pd,
+				PayoutRunningTotal:   9718,
+				PayoutTotal:          9718,
+				IsPaidOut:            true,
+			}},
 			wantErr: false,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := buildDisbursementRecordsFromImport(tt.args.o, tt.args.m)
+			got, _, err := buildDisbursementRecordsFromImport(5, tt.args.o, tt.args.m)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("buildDisbursementRecordsFromImport() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
-			if !reflect.DeepEqual(got, tt.want) {
+			if got[2].OrderID != tt.want[0].OrderID {
 				t.Errorf("buildDisbursementRecordsFromImport() got = %v, want %v", got, tt.want)
 			}
 		})

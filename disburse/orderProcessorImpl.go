@@ -58,7 +58,7 @@ func (op *OProcessor) ProcessOrder(logger *slog.Logger, ctx context.Context, dis
 // buildDisbursement contains the logic to determine if the order is before the cutoff time and whether the merchant is disbursed daily or weekly. It then
 // builds the Disbursement struct filling the required fields.
 func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo repo.DisburserRepoRepository, o *Order, merch types.Merchant, orderFee int64) (types.Disbursement, error) {
-	disbursementID := uuid.NewString()
+	disbursementID := uuid.New()
 	var pd time.Time
 	var payoutDate time.Time
 	disbursementFreq := merch.DisbursementFrequency
@@ -84,7 +84,7 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 		return types.Disbursement{}, errors.New("merchants disbursement frequency is not supported")
 	}
 
-	var disbursementGroupID string
+	var disbursementGroupID uuid.UUID
 	disbGrpID, err := disburserRepo.GetDisbursementGroupID(ctx, payoutDate, merch.Reference)
 	if err == nil {
 		disbursementGroupID = disbGrpID
@@ -107,13 +107,13 @@ func buildDisbursement(logger *slog.Logger, ctx context.Context, disburserRepo r
 
 func (op *OProcessor) ProcessBatchDistributions(disbursements []types.Disbursement) error {
 	for i := 0; i < len(disbursements); i++ {
-		if disbursements[i].RecordUUID == "" {
+		if disbursements[i].RecordUUID.String() == "" {
 			continue
 		}
 
 		_, err := op.disburserRepoRepository.InsertDisbursement(disbursements[i])
 		if err != nil {
-			op.logger.Error("error inserting disbursement record", err.Error())
+			op.logger.Error("error inserting disbursement record", "error", err.Error())
 			return err
 		}
 	}

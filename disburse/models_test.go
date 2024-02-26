@@ -2,8 +2,8 @@ package disburse
 
 import (
 	"context"
-	"database/sql"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/levtk/sequra/repo"
 	"github.com/levtk/sequra/types"
 	"log/slog"
@@ -265,7 +265,7 @@ func TestNewDisburserService(t *testing.T) {
 	type args struct {
 		logger *slog.Logger
 		ctx    context.Context
-		db     *sql.DB
+		db     *sqlx.DB
 	}
 	tests := []struct {
 		name    string
