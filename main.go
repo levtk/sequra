@@ -5,14 +5,10 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	d "github.com/levtk/sequra/disburse"
+	"github.com/spf13/viper"
 	"log/slog"
 	"net/http"
 	"os"
-)
-
-const (
-	driverName = "mysql"
-	DSN        = "root:yourrootpassword@tcp(db:3306)/disbursement"
 )
 
 func main() {
@@ -25,9 +21,15 @@ func main() {
 
 	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
 
+	viper.SetConfigFile(".env")
+	err = viper.ReadInConfig()
+	if err != nil {
+		logger.Error("failed to read config file", "error", err.Error())
+	}
+
 	logger.Info("starting disbursement service on", "hostname", hostname)
-	logger.Info("staring database...")
-	db, err := sqlx.Connect(driverName, DSN)
+	logger.Info("connecting to database...")
+	db, err := sqlx.Connect(viper.GetString("driver"), viper.GetString("DSN"))
 	if err != nil {
 		logger.Error("failed to connect to db", err.Error())
 	}
