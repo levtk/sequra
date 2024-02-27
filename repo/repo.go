@@ -23,8 +23,8 @@ const (
 
 	insertOrder = `INSERT INTO ORDERS(id, merchant_reference, merchant_id, amount, created_at) VALUES(?,?,?,?,?);`
 
-	insertDisbursement = `INSERT INTO DISBURSEMENT(id,record_uuid, disbursement_group_id, merchReference, order_id, order_fee, order_fee_running_total, payout_date, payout_running_total, payout_total, is_paid_out)
-	VALUES (?,?,?,?,?,?,?,?,?,?,?);`
+	insertDisbursement = `INSERT INTO DISBURSEMENT(record_uuid, disbursement_group_id, merchReference, order_id, order_fee, order_fee_running_total, payout_date, payout_running_total, payout_total, is_paid_out)
+	VALUES (?,?,?,?,?,?,?,?,?,?);`
 
 	getDisbursementGroupID = `SELECT disbursement_group_id FROM DISBURSEMENT WHERE payout_date=? AND merchReference=?;`
 

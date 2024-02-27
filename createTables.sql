@@ -1,7 +1,7 @@
 CREATE TABLE IF NOT EXISTS DISBURSEMENT (
-    record_uuid uuid primary key ,
-    disbursement_group_id uuid,
-    transaction_id uuid, -- not implemented. when payout is confirmed by payment method/system the id for the payment transaction should be saved
+    record_uuid UUID PRIMARY KEY ,
+    disbursement_group_id UUID,
+    transaction_id UUID, -- not implemented. when payout is confirmed by payment method/system the id for the payment transaction should be saved
     merchReference varchar(255) NOT NULL,
     order_id char(12) NOT NULL UNIQUE ,
     order_fee INT NOT NULL,
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS ORDERS (
     created_at datetime);
 
 CREATE TABLE IF NOT EXISTS MERCHANTS (
-    id uuid PRIMARY KEY,
+    id char(128) PRIMARY KEY,
     reference varchar(255),
     email varchar(255),
     live_on date,
@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS MERCHANTS (
     minimum_monthly_fee varchar(5));
 
 CREATE TABLE IF NOT EXISTS MONTHLY (
-    id uuid primary key,
-    merchant_id uuid,
+    id UUID primary key,
+    merchant_id UUID,
     merchant_reference varchar(255),
     monthly_fee_date date,
     did_pay_fee INT,
